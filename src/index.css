@@ -136,6 +136,8 @@ button, select, input { font-family: inherit; }
   align-items: center;
   gap: 16px;
   color: var(--text-muted);
+  padding-bottom: 88px; /* clear the absolute-positioned pill row at bottom */
+  font-size: 0.85rem;
 }
 
 .monogram {
