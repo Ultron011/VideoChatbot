@@ -395,33 +395,23 @@ button, select, input { font-family: inherit; }
 .caption-line {
   background: rgba(0, 0, 0, 0.72);
   color: white;
-  padding: 8px 14px;
+  padding: 10px 16px;
   border-radius: 10px;
-  font-size: 1rem;
+  font-size: 0.95rem;
   line-height: 1.4;
   text-align: center;
   backdrop-filter: blur(6px);
   word-wrap: break-word;
 }
 
-.caption-user {
-  font-size: 0.85rem;
-  opacity: 0.78;
-  background: rgba(0, 0, 0, 0.55);
-}
-.caption-user::before {
-  content: 'You: ';
-  font-weight: 600;
+.caption-speaker {
+  display: inline-block;
+  font-weight: 700;
   color: var(--text-soft);
+  margin-right: 8px;
 }
-
-.caption-assistant {
-  font-weight: 500;
-}
-.caption-assistant::before {
-  content: 'Avatar: ';
-  font-weight: 600;
-  color: var(--accent-strong);
+.caption-speaker::after {
+  content: ':';
 }
 
 /* Controls bar */

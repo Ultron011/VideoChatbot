@@ -125,10 +125,12 @@ export default function App() {
         showCaptionsNow();
       },
       onAssistantTranscriptDelta: (delta) => {
+        setLiveUserCaption('');
         setLiveAssistantCaption(prev => prev + delta);
         showCaptionsNow();
       },
       onAssistantTranscriptDone: (text) => {
+        setLiveUserCaption('');
         setLiveAssistantCaption(text);
         showCaptionsNow();
       },
@@ -256,6 +258,7 @@ export default function App() {
   // In-call view
   const renderCallView = () => {
     const showCaptions = captionsOn && captionsVisible && (liveAssistantCaption || liveUserCaption);
+    const avatarName = (PRESET_AVATARS.find(a => a.id === selectedAvatar)?.name || 'Avatar').replace(/\s*\(.*?\)\s*$/, '');
     return (
       <div className="call-stage">
         <video ref={avatarVideoRef} className="avatar-video" playsInline autoPlay />
@@ -277,8 +280,18 @@ export default function App() {
 
         {showCaptions && (
           <div className="captions">
-            {liveUserCaption && <div className="caption-line caption-user">{liveUserCaption}</div>}
-            {liveAssistantCaption && <div className="caption-line caption-assistant">{liveAssistantCaption}</div>}
+            {liveUserCaption && (
+              <div className="caption-line">
+                <span className="caption-speaker">You</span>
+                {liveUserCaption}
+              </div>
+            )}
+            {liveAssistantCaption && (
+              <div className="caption-line">
+                <span className="caption-speaker">{avatarName}</span>
+                {liveAssistantCaption}
+              </div>
+            )}
           </div>
         )}
 
