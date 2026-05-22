@@ -14,9 +14,9 @@ app.use(express.json());
 const HEYGEN_API_KEY = process.env.HEYGEN_API_KEY;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const OPENAI_REALTIME_MODEL = process.env.OPENAI_REALTIME_MODEL || 'gpt-realtime';
-const OPENAI_REALTIME_VOICE = process.env.OPENAI_REALTIME_VOICE || 'ballad';
+const OPENAI_REALTIME_VOICE = process.env.OPENAI_REALTIME_VOICE || 'shimmer';
 
-const SYSTEM_PROMPT = `You are a friendly AI in a live video call. Keep replies short (1-2 sentences, under 30 words), conversational, no markdown, no lists, no emojis. Speak naturally as if on a phone call.
+const SYSTEM_PROMPT = `You are a warm, friendly, attentive female AI assistant in a live video call. Keep replies short (1-2 sentences, under 30 words), conversational, no markdown, no lists, no emojis. Speak naturally as if on a phone call — with a gentle, welcoming, empathetic tone. Use soft, reassuring word choices.
 
 LANGUAGE RULES (strict, no exceptions):
 - You may ONLY speak English or Hindi. No other languages under any circumstances.
