@@ -23,7 +23,6 @@ export class OpenAIRealtimeClient {
   private workletNode: AudioWorkletNode | null = null;
   private assistantTranscriptBuffer = '';
   private events: RealtimeEvents;
-  private responseActive = false;
 
   constructor(events: RealtimeEvents) {
     this.events = events;
@@ -76,12 +75,9 @@ export class OpenAIRealtimeClient {
     await ctx.audioWorklet.addModule('/pcm-tap.worklet.js');
     const src = ctx.createMediaStreamSource(stream);
     const node = new AudioWorkletNode(ctx, 'pcm-tap', {
-      processorOptions: { targetSampleRate: 24000, batchSamples: 5760 } // 240ms @ 24kHz
+      processorOptions: { targetSampleRate: 24000, batchSamples: 1440 } // 60ms @ 24kHz
     });
     node.port.onmessage = (e) => {
-      // Only forward audio to the avatar when the model is actively responding.
-      // Streaming continuous silence between turns degrades HeyGen's lipsync.
-      if (!this.responseActive) return;
       const pcm = e.data as Int16Array;
       this.events.onAudioFrame?.(pcm);
     };
@@ -95,17 +91,10 @@ export class OpenAIRealtimeClient {
     try { evt = JSON.parse(raw); } catch { return; }
     switch (evt.type) {
       case 'input_audio_buffer.speech_started':
-        // Barge-in: user started talking, so any in-flight model audio is being cut.
-        this.responseActive = false;
         this.events.onUserStartedSpeaking?.();
         break;
       case 'input_audio_buffer.speech_stopped':
         this.events.onUserStoppedSpeaking?.();
-        break;
-      case 'response.created':
-      case 'response.output_audio.delta':
-      case 'response.audio.delta':
-        this.responseActive = true;
         break;
       case 'conversation.item.input_audio_transcription.completed':
         if (evt.transcript) this.events.onUserTranscript?.(evt.transcript);
@@ -123,8 +112,6 @@ export class OpenAIRealtimeClient {
         break;
       }
       case 'response.done':
-      case 'response.cancelled':
-        this.responseActive = false;
         this.events.onResponseDone?.();
         break;
       case 'error':
@@ -134,7 +121,6 @@ export class OpenAIRealtimeClient {
   }
 
   cancelResponse(): void {
-    this.responseActive = false;
     if (this.dc?.readyState === 'open') {
       this.dc.send(JSON.stringify({ type: 'response.cancel' }));
     }
