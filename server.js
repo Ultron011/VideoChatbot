@@ -110,11 +110,10 @@ app.post('/api/avatar-session', async (req, res) => {
     const startJson = await startResp.json();
     const d = startJson.data || startJson;
     return res.json({
-      session_id: d.session_id || d.id,
-      livekit_url: d.livekit_url || d.url,
-      livekit_token: d.livekit_token || d.access_token,
-      room: d.room || d.room_name,
-      ws_url: d.ws_url || d.websocket_url
+      session_id: d.session_id,
+      livekit_url: d.livekit_url,
+      livekit_token: d.livekit_client_token,
+      ws_url: d.ws_url
     });
   } catch (err) {
     console.error('avatar-session error:', err);
