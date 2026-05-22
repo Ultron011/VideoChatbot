@@ -39,6 +39,9 @@ export default function App() {
   const realtimeRef = useRef<OpenAIRealtimeClient | null>(null);
   const avatarRef = useRef<LiveAvatarLiteClient | null>(null);
   const captionFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // True while the assistant is producing output. Used to ignore late-arriving
+  // user transcripts that would otherwise clobber the assistant's caption.
+  const assistantActiveRef = useRef(false);
 
   const backendBase = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
@@ -118,13 +121,22 @@ export default function App() {
 
     const realtime = new OpenAIRealtimeClient({
       onAudioFrame: (pcm) => avatar.speak(pcm),
-      onUserStartedSpeaking: () => avatar.interrupt(),
+      onUserStartedSpeaking: () => {
+        // Barge-in invalidates the in-flight assistant turn.
+        assistantActiveRef.current = false;
+        avatar.interrupt();
+      },
       onUserTranscript: (text) => {
+        // Skip transcripts that arrive AFTER the assistant has already
+        // started replying — they belong to the just-finished user turn
+        // that triggered this very reply.
+        if (assistantActiveRef.current) return;
         setLiveUserCaption(text);
         setLiveAssistantCaption('');
         showCaptionsNow();
       },
       onAssistantTranscriptDelta: (delta) => {
+        assistantActiveRef.current = true;
         setLiveUserCaption('');
         setLiveAssistantCaption(prev => prev + delta);
         showCaptionsNow();
@@ -134,7 +146,10 @@ export default function App() {
         setLiveAssistantCaption(text);
         showCaptionsNow();
       },
-      onResponseDone: () => avatar.speakEnd(),
+      onResponseDone: () => {
+        assistantActiveRef.current = false;
+        avatar.speakEnd();
+      },
       onError: (e) => setError(e.message)
     });
 
