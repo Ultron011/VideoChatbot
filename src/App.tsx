@@ -18,6 +18,17 @@ const OPENAI_VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimm
 const CAPTION_FADE_MS = 6000;
 
 export default function App() {
+  const [stars] = useState(() =>
+    Array.from({ length: 45 }, (_, i) => ({
+      id: i,
+      left: `${Math.random() * 100}%`,
+      top: `${Math.random() * 100}%`,
+      size: Math.random() * 2.5 + 0.5,
+      delay: `${Math.random() * 8}s`,
+      duration: `${Math.random() * 6 + 4}s`
+    }))
+  );
+
   const [selectedAvatar, setSelectedAvatar] = useState(
     PRESET_AVATARS.find(a => a.name.startsWith('June'))?.id ?? PRESET_AVATARS[1].id
   );
@@ -39,6 +50,42 @@ export default function App() {
   const avatarVideoRef = useRef<HTMLVideoElement>(null);
   const userVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  const lobbyRef = useRef<HTMLDivElement>(null);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const lobby = lobbyRef.current;
+    if (!lobby) return;
+
+    const { clientX, clientY } = e;
+    const { width, height, left, top } = lobby.getBoundingClientRect();
+
+    // Mouse coordinates centered at 0 (from -0.5 to 0.5)
+    const x = (clientX - left) / width - 0.5;
+    const y = (clientY - top) / height - 0.5;
+
+    // Set CSS custom properties directly on the element (avoiding React re-renders)
+    lobby.style.setProperty('--mouse-x', x.toFixed(3));
+    lobby.style.setProperty('--mouse-y', y.toFixed(3));
+
+    // Calculate 3D tilt angles (max tilt of 8 degrees)
+    const maxTilt = 8;
+    const tiltRX = -(y * maxTilt);
+    const tiltRY = x * maxTilt;
+
+    lobby.style.setProperty('--tilt-rx', `${tiltRX.toFixed(2)}deg`);
+    lobby.style.setProperty('--tilt-ry', `${tiltRY.toFixed(2)}deg`);
+  };
+
+  const handleMouseLeave = () => {
+    const lobby = lobbyRef.current;
+    if (!lobby) return;
+
+    // Smoothly reset tilt and parallax variables
+    lobby.style.setProperty('--mouse-x', '0');
+    lobby.style.setProperty('--mouse-y', '0');
+    lobby.style.setProperty('--tilt-rx', '0deg');
+    lobby.style.setProperty('--tilt-ry', '0deg');
+  };
 
   const realtimeRef = useRef<OpenAIRealtimeClient | null>(null);
   const avatarRef = useRef<LiveAvatarLiteClient | null>(null);
@@ -184,11 +231,103 @@ export default function App() {
 
   // Lobby (pre-call)
   const renderLobby = () => (
-    <div className="lobby">
+    <div
+      ref={lobbyRef}
+      className="lobby"
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+    >
+      <div className="stars-container">
+        {stars.map(star => (
+          <div
+            key={star.id}
+            className="star-particle"
+            style={{
+              left: star.left,
+              top: star.top,
+              width: `${star.size}px`,
+              height: `${star.size}px`,
+              animationDelay: star.delay,
+              animationDuration: star.duration
+            }}
+          />
+        ))}
+      </div>
+
+      <div className="shapes-container">
+        {/* Platinum Octahedron Wireframe */}
+        <div className="floating-shape shape-platinum-octahedron">
+          <svg viewBox="0 0 200 200" width="220" height="220" fill="none">
+            <defs>
+              <linearGradient id="platGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" />
+                <stop offset="50%" stopColor="#a3a3a3" />
+                <stop offset="100%" stopColor="#404040" />
+              </linearGradient>
+            </defs>
+            <line x1="100" y1="20" x2="40" y2="100" stroke="url(#platGrad)" strokeWidth="1.2" />
+            <line x1="100" y1="20" x2="160" y2="100" stroke="url(#platGrad)" strokeWidth="1.2" />
+            <line x1="100" y1="20" x2="100" y2="100" stroke="url(#platGrad)" strokeWidth="0.8" opacity="0.6" />
+            <polygon points="40,100 100,80 160,100 100,120" stroke="url(#platGrad)" strokeWidth="1" strokeLinejoin="round" />
+            <line x1="100" y1="180" x2="40" y2="100" stroke="url(#platGrad)" strokeWidth="1.2" />
+            <line x1="100" y1="180" x2="160" y2="100" stroke="url(#platGrad)" strokeWidth="1.2" />
+            <line x1="100" y1="180" x2="100" y2="100" stroke="url(#platGrad)" strokeWidth="0.8" opacity="0.6" />
+          </svg>
+        </div>
+
+        {/* Champagne Gold Rings Cluster */}
+        <div className="floating-shape shape-gold-rings">
+          <svg viewBox="0 0 200 200" width="180" height="180" fill="none">
+            <defs>
+              <linearGradient id="goldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fbf3db" />
+                <stop offset="50%" stopColor="#c5a880" />
+                <stop offset="100%" stopColor="#866c4c" />
+              </linearGradient>
+            </defs>
+            <ellipse cx="100" cy="100" rx="80" ry="30" stroke="url(#goldGrad)" strokeWidth="1.2" />
+            <ellipse cx="100" cy="100" rx="60" ry="22" stroke="url(#goldGrad)" strokeWidth="1" strokeDasharray="5 3" opacity="0.7" />
+            <ellipse cx="100" cy="100" rx="40" ry="15" stroke="url(#goldGrad)" strokeWidth="0.6" opacity="0.4" />
+          </svg>
+        </div>
+
+        {/* Champagne Gold Orbital Sphere */}
+        <div className="floating-shape shape-gold-sphere">
+          <svg viewBox="0 0 200 200" width="140" height="140" fill="none">
+            <defs>
+              <linearGradient id="goldGrad2" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stopColor="#fbf3db" />
+                <stop offset="50%" stopColor="#c5a880" />
+                <stop offset="100%" stopColor="#866c4c" />
+              </linearGradient>
+            </defs>
+            <circle cx="100" cy="100" r="70" stroke="url(#goldGrad2)" strokeWidth="0.8" transform="rotate(30, 100, 100)" />
+            <circle cx="100" cy="100" r="70" stroke="url(#goldGrad2)" strokeWidth="0.8" transform="rotate(-30, 100, 100)" strokeDasharray="8 4" opacity="0.7" />
+            <circle cx="100" cy="100" r="70" stroke="url(#goldGrad2)" strokeWidth="0.5" transform="rotate(90, 100, 100)" opacity="0.4" />
+          </svg>
+        </div>
+
+        {/* Platinum Ribbon/Helix */}
+        <div className="floating-shape shape-platinum-helix">
+          <svg viewBox="0 0 100 200" width="100" height="200" fill="none">
+            <defs>
+              <linearGradient id="platHelix" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stopColor="#ffffff" opacity="0.8" />
+                <stop offset="50%" stopColor="#a3a3a3" opacity="0.4" />
+                <stop offset="100%" stopColor="#404040" opacity="0.1" />
+              </linearGradient>
+            </defs>
+            <path d="M50,10 C20,40 80,70 50,100 C20,130 80,160 50,190" stroke="url(#platHelix)" strokeWidth="1.5" strokeLinecap="round" />
+            <path d="M50,10 C80,40 20,70 50,100 C80,130 20,160 50,190" stroke="url(#platHelix)" strokeWidth="0.8" strokeDasharray="3 3" opacity="0.5" strokeLinecap="round" />
+          </svg>
+        </div>
+      </div>
+
       <header className="lobby-header">
         <div className="brand-mark">
           <div className="brand-dot" />
-          <span className="brand-name">LiveCall AI</span>
+          <span className="brand-name">Liaison</span>
+          <span className="brand-tag">Internal Beta</span>
         </div>
       </header>
 

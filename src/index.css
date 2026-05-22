@@ -1,18 +1,18 @@
 @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
 
 :root {
-  --bg-deep: #0b0d12;
-  --bg-surface: #14171f;
-  --bg-elevated: #1c2030;
-  --bg-overlay: rgba(20, 23, 31, 0.85);
+  --bg-deep: #050608;
+  --bg-surface: #0b0c10;
+  --bg-elevated: #12141a;
+  --bg-overlay: rgba(11, 12, 16, 0.85);
 
-  --line: rgba(255, 255, 255, 0.08);
-  --line-strong: rgba(255, 255, 255, 0.14);
+  --line: rgba(255, 255, 255, 0.04);
+  --line-strong: rgba(255, 255, 255, 0.08);
 
-  --accent: #7c3aed;
-  --accent-strong: #8b5cf6;
-  --accent-soft: rgba(124, 58, 237, 0.16);
-  --accent-glow: 0 8px 32px rgba(124, 58, 237, 0.45);
+  --accent: #c5a880; /* Premium Champagne Gold */
+  --accent-strong: #e5cfb3;
+  --accent-soft: rgba(197, 168, 128, 0.08);
+  --accent-glow: 0 8px 32px rgba(197, 168, 128, 0.2);
 
   --danger: #ef4444;
   --danger-strong: #dc2626;
@@ -20,16 +20,16 @@
   --warn: #f59e0b;
 
   --text: #f3f4f6;
-  --text-soft: #c9ccd6;
-  --text-muted: #8a8f9b;
+  --text-soft: #d1d5db;
+  --text-muted: #737373;
 
   --font: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   --font-display: 'Space Grotesk', sans-serif;
 
-  --shadow-card: 0 24px 60px rgba(0, 0, 0, 0.6);
-  --radius-card: 20px;
+  --shadow-card: 0 40px 90px rgba(0, 0, 0, 0.85);
+  --radius-card: 24px;
   --radius-pill: 999px;
-  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease: cubic-bezier(0.25, 1, 0.5, 1);
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -67,18 +67,26 @@ button, select, input { font-family: inherit; }
   height: 100%;
   display: flex;
   flex-direction: column;
-  background:
-    radial-gradient(at 0% 0%, rgba(124, 58, 237, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(6, 182, 212, 0.10) 0px, transparent 55%),
-    var(--bg-deep);
+  background: var(--bg-deep);
+  background-image: radial-gradient(circle at 50% 50%, #101115 0%, var(--bg-deep) 100%);
   padding: 20px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: relative;
+  perspective: 1200px; /* 3D Perspective Stage */
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+.lobby::-webkit-scrollbar {
+  display: none; /* Chrome, Safari and Opera */
 }
 
 .lobby-header {
   display: flex;
   align-items: center;
   padding: 4px 8px 24px;
+  position: relative;
+  z-index: 2;
 }
 
 .brand-mark {
@@ -100,6 +108,19 @@ button, select, input { font-family: inherit; }
   font-size: 1.05rem;
 }
 
+.brand-tag {
+  margin-left: 4px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text-muted);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
 .lobby-card {
   flex: 1;
   max-width: 1080px;
@@ -109,24 +130,35 @@ button, select, input { font-family: inherit; }
   grid-template-columns: 1fr;
   gap: 20px;
   padding: 12px 0 40px;
+  position: relative;
+  z-index: 2;
+  transform-style: preserve-3d;
+  transform: rotateX(var(--tilt-rx, 0deg)) rotateY(var(--tilt-ry, 0deg)) translateZ(10px);
+  transition: transform 0.25s cubic-bezier(0.25, 1, 0.5, 1);
+  will-change: transform;
 }
 
 .lobby-camera-area {
   display: flex;
   flex-direction: column;
   gap: 18px;
+  transform: translateZ(35px);
+  transform-style: preserve-3d;
 }
 
 .lobby-preview {
   position: relative;
-  background: var(--bg-surface);
-  border: 1px solid var(--line);
+  background: rgba(11, 12, 16, 0.45);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-card);
   overflow: hidden;
   min-height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
+  backdrop-filter: blur(16px);
+  box-shadow: 0 35px 70px rgba(0, 0, 0, 0.7);
+  transform: translateZ(20px);
 }
 
 .lobby-preview-video {
@@ -168,6 +200,7 @@ button, select, input { font-family: inherit; }
   display: flex;
   justify-content: center;
   gap: 14px;
+  transform: translateZ(50px);
 }
 
 .pill-toggle {
@@ -189,13 +222,18 @@ button, select, input { font-family: inherit; }
 .pill-toggle.off:hover { background: var(--danger-strong); }
 
 .lobby-form {
-  background: var(--bg-surface);
-  border: 1px solid var(--line);
+  background: rgba(11, 12, 16, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-card);
   padding: 28px;
   display: flex;
   flex-direction: column;
   gap: 18px;
+  backdrop-filter: blur(24px);
+  box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255, 255, 255, 0.02);
+  transform: translateZ(55px);
+  transform-style: preserve-3d;
 }
 
 .lobby-title {
@@ -251,22 +289,26 @@ button, select, input { font-family: inherit; }
   margin-top: 6px;
   width: 100%;
   background: var(--accent);
-  color: white;
+  color: #050608;
   border: none;
   border-radius: var(--radius-pill);
   padding: 14px 20px;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  transition: background 0.18s var(--ease), transform 0.18s var(--ease);
+  transition: background 0.18s var(--ease), transform 0.18s var(--ease), box-shadow 0.18s var(--ease);
   box-shadow: var(--accent-glow);
+  transform: translateZ(35px);
 }
-.join-btn:hover { background: var(--accent-strong); }
-.join-btn:active { transform: translateY(1px); }
+.join-btn:hover {
+  background: var(--accent-strong);
+  box-shadow: var(--accent-glow), 0 0 24px rgba(197, 168, 128, 0.4);
+}
+.join-btn:active { transform: translateZ(30px) translateY(1px); }
 
 .lobby-tip {
   margin-top: 4px;
@@ -595,3 +637,145 @@ button, select, input { font-family: inherit; }
   .control-pill { width: 48px; height: 48px; }
   .control-pill.end { width: 60px; }
 }
+
+/* ============================================================
+   PREMIUM ANIMATED BACKGROUND EFFECTS
+   ============================================================ */
+
+/* Stars Particle Canvas (with mouse parallax) */
+.stars-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 1;
+  overflow: hidden;
+  transform: translate(calc(var(--mouse-x, 0) * -25px), calc(var(--mouse-y, 0) * -25px));
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.star-particle {
+  position: absolute;
+  background: #ffffff;
+  border-radius: 50%;
+  opacity: 0;
+  animation-name: twinkle;
+  animation-iteration-count: infinite;
+  animation-timing-function: ease-in-out;
+  box-shadow: 0 0 6px rgba(255, 255, 255, 0.8);
+}
+
+@keyframes twinkle {
+  0%, 100% {
+    opacity: 0;
+    transform: scale(0.6) translateY(0);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.15) translateY(-5px);
+  }
+}
+
+/* Premium Animated Background Shapes */
+.shapes-container {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+  perspective: 1000px;
+  transform: translate(calc(var(--mouse-x, 0) * -15px), calc(var(--mouse-y, 0) * -15px));
+  transition: transform 0.35s cubic-bezier(0.25, 1, 0.5, 1);
+}
+
+.floating-shape {
+  position: absolute;
+  filter: drop-shadow(0 15px 35px rgba(0, 0, 0, 0.6));
+  opacity: 0.55;
+  pointer-events: none;
+  will-change: transform;
+}
+
+/* Platinum Octahedron Wireframe */
+.shape-platinum-octahedron {
+  top: 12%;
+  right: 10%;
+  animation: spinOctahedron 32s linear infinite;
+  transform-style: preserve-3d;
+}
+
+@keyframes spinOctahedron {
+  0% {
+    transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotateX(180deg) rotateY(90deg) rotateZ(180deg) translate3d(20px, -35px, 60px);
+  }
+  100% {
+    transform: rotateX(360deg) rotateY(360deg) rotateZ(360deg) translate3d(0, 0, 0);
+  }
+}
+
+/* Champagne Gold Rings */
+.shape-gold-rings {
+  bottom: 10%;
+  left: 8%;
+  animation: floatRings 28s ease-in-out infinite alternate;
+  transform-style: preserve-3d;
+}
+
+@keyframes floatRings {
+  0% {
+    transform: rotateX(20deg) rotateY(15deg) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotateX(-35deg) rotateY(45deg) translate3d(-30px, 40px, -60px) scale(1.08);
+  }
+  100% {
+    transform: rotateX(40deg) rotateY(-20deg) translate3d(30px, -20px, 40px);
+  }
+}
+
+/* Champagne Gold Orbital Sphere */
+.shape-gold-sphere {
+  top: 45%;
+  right: 48%;
+  opacity: 0.35;
+  animation: rotateSphere 24s linear infinite;
+}
+
+@keyframes rotateSphere {
+  0% {
+    transform: rotate(0deg) scale(0.9) translate3d(0, 0, 0);
+  }
+  50% {
+    transform: rotate(180deg) scale(1.08) translate3d(-15px, 25px, 0);
+  }
+  100% {
+    transform: rotate(360deg) scale(0.9) translate3d(0, 0, 0);
+  }
+}
+
+/* Platinum Helix */
+.shape-platinum-helix {
+  bottom: 25%;
+  right: 6%;
+  opacity: 0.28;
+  animation: floatHelix 30s ease-in-out infinite alternate;
+}
+
+@keyframes floatHelix {
+  0% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-45px) rotate(45deg) scaleX(0.85);
+  }
+  100% {
+    transform: translateY(20px) rotate(-30deg);
+  }
+}
+
