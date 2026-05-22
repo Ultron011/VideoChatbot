@@ -183,15 +183,17 @@ export default function App() {
       </header>
 
       <div className="lobby-card">
-        <div className="lobby-preview">
-          {isCameraOn ? (
-            <video ref={userVideoRef} className="lobby-preview-video" playsInline autoPlay muted />
-          ) : (
-            <div className="lobby-preview-empty">
-              <div className="monogram">Y</div>
-              <span>Camera is off</span>
-            </div>
-          )}
+        <div className="lobby-camera-area">
+          <div className="lobby-preview">
+            {isCameraOn ? (
+              <video ref={userVideoRef} className="lobby-preview-video" playsInline autoPlay muted />
+            ) : (
+              <div className="lobby-preview-empty">
+                <div className="monogram">Y</div>
+                <span className="lobby-preview-label">Camera is off</span>
+              </div>
+            )}
+          </div>
           <div className="lobby-preview-pills">
             <button
               className={`pill-toggle ${isMuted ? 'off' : ''}`}

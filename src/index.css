@@ -111,13 +111,19 @@ button, select, input { font-family: inherit; }
   padding: 12px 0 40px;
 }
 
+.lobby-camera-area {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
 .lobby-preview {
   position: relative;
   background: var(--bg-surface);
   border: 1px solid var(--line);
   border-radius: var(--radius-card);
   overflow: hidden;
-  aspect-ratio: 16 / 9;
+  min-height: 280px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -128,38 +134,40 @@ button, select, input { font-family: inherit; }
   height: 100%;
   object-fit: cover;
   transform: scaleX(-1); /* mirror selfie view */
+  position: absolute;
+  inset: 0;
 }
 
 .lobby-preview-empty {
-  position: absolute;
-  inset: 0 0 88px 0; /* fill preview area above the pill row */
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 16px;
+  gap: 18px;
   color: var(--text-muted);
-  font-size: 0.85rem;
 }
 
 .monogram {
-  width: 88px; height: 88px;
+  flex-shrink: 0;
+  width: 96px; height: 96px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--accent), var(--accent-strong));
   display: flex; align-items: center; justify-content: center;
   font-family: var(--font-display);
-  font-size: 2.4rem; font-weight: 700;
+  font-size: 2.6rem; font-weight: 700;
   color: white;
   box-shadow: var(--accent-glow);
 }
 
+.lobby-preview-label {
+  font-size: 0.9rem;
+  letter-spacing: 0.01em;
+}
+
 .lobby-preview-pills {
-  position: absolute;
-  left: 50%;
-  bottom: 16px;
-  transform: translateX(-50%);
   display: flex;
-  gap: 12px;
+  justify-content: center;
+  gap: 14px;
 }
 
 .pill-toggle {
