@@ -387,7 +387,6 @@ export default function App() {
             >
               {OPENAI_VOICES.map(v => <option key={v} value={v}>{v}</option>)}
             </select>
-            <span className="field-hint">Voice is currently set server-side via OPENAI_REALTIME_VOICE.</span>
           </label>
 
           <button className="join-btn" onClick={handleStartCall} type="button">
