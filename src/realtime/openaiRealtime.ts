@@ -89,6 +89,13 @@ export class OpenAIRealtimeClient {
   private handleServerEvent(raw: string): void {
     let evt: any;
     try { evt = JSON.parse(raw); } catch { return; }
+
+    if (import.meta.env?.DEV) {
+      if (evt.type?.startsWith('response.') || evt.type?.startsWith('conversation.')) {
+        console.debug('[Realtime]', evt.type, evt.delta ?? evt.transcript ?? '');
+      }
+    }
+
     switch (evt.type) {
       case 'input_audio_buffer.speech_started':
         this.events.onUserStartedSpeaking?.();
@@ -99,19 +106,30 @@ export class OpenAIRealtimeClient {
       case 'conversation.item.input_audio_transcription.completed':
         if (evt.transcript) this.events.onUserTranscript?.(evt.transcript);
         break;
+      // Assistant streaming transcript — accept Beta and GA event names.
       case 'response.audio_transcript.delta':
+      case 'response.output_audio_transcript.delta':
+      case 'response.output_text.delta':
         if (evt.delta) {
           this.assistantTranscriptBuffer += evt.delta;
           this.events.onAssistantTranscriptDelta?.(evt.delta);
         }
         break;
-      case 'response.audio_transcript.done': {
-        const text = evt.transcript || this.assistantTranscriptBuffer;
+      case 'response.audio_transcript.done':
+      case 'response.output_audio_transcript.done':
+      case 'response.output_text.done': {
+        const text = evt.transcript || evt.text || this.assistantTranscriptBuffer;
         this.assistantTranscriptBuffer = '';
         if (text) this.events.onAssistantTranscriptDone?.(text);
         break;
       }
       case 'response.done':
+        // Safety net: if `done` fires without a prior transcript.done, flush the buffer.
+        if (this.assistantTranscriptBuffer) {
+          const text = this.assistantTranscriptBuffer;
+          this.assistantTranscriptBuffer = '';
+          this.events.onAssistantTranscriptDone?.(text);
+        }
         this.events.onResponseDone?.();
         break;
       case 'error':
