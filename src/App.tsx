@@ -1,9 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import {
-  Phone, PhoneOff, Mic, MicOff, Video, VideoOff, Settings,
-  MessageSquare, Sparkles, AlertCircle, Info, Send,
-  Maximize2, Minimize2
-} from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Phone, PhoneOff } from 'lucide-react';
 import { OpenAIRealtimeClient } from './realtime/openaiRealtime';
 import { LiveAvatarLiteClient } from './avatar/liveAvatarLite';
 
@@ -17,42 +13,32 @@ const PRESET_AVATARS = [
   { id: '65f9e3c9-d48b-4118-b73a-4ae2e3cbb8f0', name: 'June (HR)' }
 ];
 
-const OPENAI_VOICES = [
-  'alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse'
-];
+const OPENAI_VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse'];
 
-interface TranscriptItem {
-  id: string;
-  sender: 'user' | 'avatar';
-  text: string;
-}
+const CAPTION_FADE_MS = 6000;
 
 export default function App() {
-  const [selectedAvatar, setSelectedAvatar] = useState(PRESET_AVATARS[0].id);
+  const [selectedAvatar, setSelectedAvatar] = useState(PRESET_AVATARS[1].id);
   const [selectedVoice, setSelectedVoice] = useState(OPENAI_VOICES[0]);
   const [state, setState] = useState<CallState>('INACTIVE');
   const [error, setError] = useState<string | null>(null);
 
   const [isMuted, setIsMuted] = useState(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
-  const [textInput, setTextInput] = useState('');
-  const [transcripts, setTranscripts] = useState<TranscriptItem[]>([]);
-  const [avatarSpeaking, setAvatarSpeaking] = useState(false);
-  const [userSpeaking, setUserSpeaking] = useState(false);
-  const [isImmersive, setIsImmersive] = useState(false);
-  const [showSidebar, setShowSidebar] = useState(true);
 
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const [captionsOn, setCaptionsOn] = useState(true);
+  const [captionsVisible, setCaptionsVisible] = useState(false);
+  const [liveAssistantCaption, setLiveAssistantCaption] = useState('');
+  const [liveUserCaption, setLiveUserCaption] = useState('');
+  const [showStatusPill, setShowStatusPill] = useState(true);
+
+  const avatarVideoRef = useRef<HTMLVideoElement>(null);
   const userVideoRef = useRef<HTMLVideoElement>(null);
-  const transcriptEndRef = useRef<HTMLDivElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
 
   const realtimeRef = useRef<OpenAIRealtimeClient | null>(null);
   const avatarRef = useRef<LiveAvatarLiteClient | null>(null);
-  const assistantInProgressIdRef = useRef<string | null>(null);
-
-  const [avatarAudioBars, setAvatarAudioBars] = useState<number[]>(new Array(15).fill(4));
-  const [userAudioBars, setUserAudioBars] = useState<number[]>(new Array(15).fill(4));
+  const captionFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const backendBase = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
@@ -78,84 +64,53 @@ export default function App() {
     setIsCameraOn(false);
   };
 
+  const toggleCamera = () => (isCameraOn ? stopLocalCamera() : startLocalCamera());
+
+  // Re-bind stream after a screen swap (lobby ↔ call) so the active <video> picks it up.
   useEffect(() => {
-    transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [transcripts]);
+    if (isCameraOn && localStreamRef.current && userVideoRef.current) {
+      userVideoRef.current.srcObject = localStreamRef.current;
+      userVideoRef.current.play().catch(() => {});
+    }
+  }, [state, isCameraOn]);
 
   useEffect(() => {
     return () => {
       stopLocalCamera();
       realtimeRef.current?.stop();
       avatarRef.current?.stop();
+      if (captionFadeTimer.current) clearTimeout(captionFadeTimer.current);
     };
   }, []);
 
+  // Auto-hide status pill 3s after CONNECTED.
   useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
-    if (avatarSpeaking) {
-      interval = setInterval(() => {
-        setAvatarAudioBars(Array.from({ length: 15 }, () => Math.floor(Math.random() * 28) + 8));
-      }, 80);
-    } else {
-      setTimeout(() => setAvatarAudioBars(new Array(15).fill(4)), 0);
+    if (state === 'CONNECTED') {
+      setShowStatusPill(true);
+      const t = setTimeout(() => setShowStatusPill(false), 3000);
+      return () => clearTimeout(t);
     }
-    return () => { if (interval) clearInterval(interval); };
-  }, [avatarSpeaking]);
+    setShowStatusPill(true);
+  }, [state]);
 
-  useEffect(() => {
-    let interval: ReturnType<typeof setInterval> | undefined;
-    if (userSpeaking) {
-      interval = setInterval(() => {
-        setUserAudioBars(Array.from({ length: 15 }, () => Math.floor(Math.random() * 28) + 8));
-      }, 80);
-    } else {
-      setTimeout(() => setUserAudioBars(new Array(15).fill(4)), 0);
-    }
-    return () => { if (interval) clearInterval(interval); };
-  }, [userSpeaking]);
-
-  const toggleCamera = () => isCameraOn ? stopLocalCamera() : startLocalCamera();
-
-  const appendUserTranscript = (text: string) => {
-    setTranscripts(prev => [...prev, { id: Math.random().toString(), sender: 'user', text }]);
-  };
-
-  const appendAssistantTranscriptDone = (text: string) => {
-    setTranscripts(prev => {
-      if (assistantInProgressIdRef.current) {
-        const id = assistantInProgressIdRef.current;
-        assistantInProgressIdRef.current = null;
-        return prev.map(t => t.id === id ? { ...t, text } : t);
-      }
-      return [...prev, { id: Math.random().toString(), sender: 'avatar', text }];
-    });
-  };
-
-  const appendAssistantDelta = (delta: string) => {
-    setTranscripts(prev => {
-      if (!assistantInProgressIdRef.current) {
-        const newId = Math.random().toString();
-        assistantInProgressIdRef.current = newId;
-        return [...prev, { id: newId, sender: 'avatar', text: delta }];
-      }
-      const id = assistantInProgressIdRef.current;
-      return prev.map(t => t.id === id ? { ...t, text: t.text + delta } : t);
-    });
+  const showCaptionsNow = () => {
+    setCaptionsVisible(true);
+    if (captionFadeTimer.current) clearTimeout(captionFadeTimer.current);
+    captionFadeTimer.current = setTimeout(() => setCaptionsVisible(false), CAPTION_FADE_MS);
   };
 
   const handleStartCall = async () => {
     setError(null);
     setState('CONNECTING');
-    setTranscripts([]);
+    setLiveAssistantCaption('');
+    setLiveUserCaption('');
 
     const avatar = new LiveAvatarLiteClient({
       onConnected: () => console.log('[Avatar] WS connected'),
-      onAvatarSpeakStarted: () => setAvatarSpeaking(true),
-      onAvatarSpeakEnded: () => setAvatarSpeaking(false),
       onVideoTrack: (ms) => {
-        if (videoRef.current) {
-          videoRef.current.srcObject = ms;
-          videoRef.current.play().catch(() => {});
+        if (avatarVideoRef.current) {
+          avatarVideoRef.current.srcObject = ms;
+          avatarVideoRef.current.play().catch(() => {});
         }
       },
       onError: (e) => setError(e.message)
@@ -163,14 +118,20 @@ export default function App() {
 
     const realtime = new OpenAIRealtimeClient({
       onAudioFrame: (pcm) => avatar.speak(pcm),
-      onUserStartedSpeaking: () => {
-        setUserSpeaking(true);
-        avatar.interrupt();
+      onUserStartedSpeaking: () => avatar.interrupt(),
+      onUserTranscript: (text) => {
+        setLiveUserCaption(text);
+        setLiveAssistantCaption('');
+        showCaptionsNow();
       },
-      onUserStoppedSpeaking: () => setUserSpeaking(false),
-      onUserTranscript: (text) => appendUserTranscript(text),
-      onAssistantTranscriptDelta: (delta) => appendAssistantDelta(delta),
-      onAssistantTranscriptDone: (text) => appendAssistantTranscriptDone(text),
+      onAssistantTranscriptDelta: (delta) => {
+        setLiveAssistantCaption(prev => prev + delta);
+        showCaptionsNow();
+      },
+      onAssistantTranscriptDone: (text) => {
+        setLiveAssistantCaption(text);
+        showCaptionsNow();
+      },
       onResponseDone: () => avatar.speakEnd(),
       onError: (e) => setError(e.message)
     });
@@ -201,10 +162,8 @@ export default function App() {
     realtimeRef.current = null;
     avatarRef.current = null;
     setState('INACTIVE');
-    setAvatarSpeaking(false);
-    setUserSpeaking(false);
-    setIsImmersive(false);
-    setShowSidebar(true);
+    setLiveAssistantCaption('');
+    setLiveUserCaption('');
   };
 
   const toggleMute = () => {
@@ -213,221 +172,168 @@ export default function App() {
     setIsMuted(next);
   };
 
-  const handleSendMessage = () => {
-    if (!textInput.trim() || !realtimeRef.current) return;
-    appendUserTranscript(textInput);
-    realtimeRef.current.sendTextMessage(textInput);
-    setTextInput('');
+  // Lobby (pre-call)
+  const renderLobby = () => (
+    <div className="lobby">
+      <header className="lobby-header">
+        <div className="brand-mark">
+          <div className="brand-dot" />
+          <span className="brand-name">LiveCall AI</span>
+        </div>
+      </header>
+
+      <div className="lobby-card">
+        <div className="lobby-preview">
+          {isCameraOn ? (
+            <video ref={userVideoRef} className="lobby-preview-video" playsInline autoPlay muted />
+          ) : (
+            <div className="lobby-preview-empty">
+              <div className="monogram">Y</div>
+              <span>Camera is off</span>
+            </div>
+          )}
+          <div className="lobby-preview-pills">
+            <button
+              className={`pill-toggle ${isMuted ? 'off' : ''}`}
+              onClick={toggleMute}
+              aria-label={isMuted ? 'Unmute' : 'Mute'}
+              type="button"
+            >
+              {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
+            </button>
+            <button
+              className={`pill-toggle ${!isCameraOn ? 'off' : ''}`}
+              onClick={toggleCamera}
+              aria-label={isCameraOn ? 'Turn camera off' : 'Turn camera on'}
+              type="button"
+            >
+              {isCameraOn ? <Video size={18} /> : <VideoOff size={18} />}
+            </button>
+          </div>
+        </div>
+
+        <div className="lobby-form">
+          <h1 className="lobby-title">Ready to join?</h1>
+          <p className="lobby-sub">Pick an avatar and we’ll connect you.</p>
+
+          <label className="field">
+            <span className="field-label">Avatar</span>
+            <select
+              className="field-select"
+              value={selectedAvatar}
+              onChange={e => setSelectedAvatar(e.target.value)}
+            >
+              {PRESET_AVATARS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </label>
+
+          <label className="field">
+            <span className="field-label">Voice</span>
+            <select
+              className="field-select"
+              value={selectedVoice}
+              onChange={e => setSelectedVoice(e.target.value)}
+            >
+              {OPENAI_VOICES.map(v => <option key={v} value={v}>{v}</option>)}
+            </select>
+            <span className="field-hint">Voice is currently set server-side via OPENAI_REALTIME_VOICE.</span>
+          </label>
+
+          <button className="join-btn" onClick={handleStartCall} type="button">
+            <Phone size={18} /> Join now
+          </button>
+
+          <p className="lobby-tip">You can interrupt the avatar any time — just start talking.</p>
+        </div>
+      </div>
+
+      {error && <div className="error-toast">{error}</div>}
+    </div>
+  );
+
+  // In-call view
+  const renderCallView = () => {
+    const showCaptions = captionsOn && captionsVisible && (liveAssistantCaption || liveUserCaption);
+    return (
+      <div className="call-stage">
+        <video ref={avatarVideoRef} className="avatar-video" playsInline autoPlay />
+
+        {showStatusPill && (
+          <div className={`status-pill ${state === 'CONNECTED' ? 'good' : 'connecting'}`}>
+            <span className="status-dot" />
+            <span>{state === 'CONNECTED' ? 'Connected' : state === 'CONNECTING' ? 'Connecting…' : state}</span>
+          </div>
+        )}
+
+        <div className="user-pip" onClick={toggleCamera} role="button" tabIndex={0}>
+          {isCameraOn ? (
+            <video ref={userVideoRef} className="user-pip-video" playsInline autoPlay muted />
+          ) : (
+            <div className="user-pip-monogram">Y</div>
+          )}
+        </div>
+
+        {showCaptions && (
+          <div className="captions">
+            {liveUserCaption && <div className="caption-line caption-user">{liveUserCaption}</div>}
+            {liveAssistantCaption && <div className="caption-line caption-assistant">{liveAssistantCaption}</div>}
+          </div>
+        )}
+
+        {state === 'CONNECTING' && (
+          <div className="connecting-overlay">
+            <div className="connecting-spinner" />
+            <span>Connecting…</span>
+          </div>
+        )}
+
+        <div className="controls-bar">
+          <button
+            className={`control-pill ${isMuted ? 'off' : ''}`}
+            onClick={toggleMute}
+            data-tooltip={isMuted ? 'Unmute' : 'Mute'}
+            aria-label={isMuted ? 'Unmute' : 'Mute'}
+            type="button"
+          >
+            {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+          </button>
+          <button
+            className={`control-pill ${!isCameraOn ? 'off' : ''}`}
+            onClick={toggleCamera}
+            data-tooltip={isCameraOn ? 'Turn camera off' : 'Turn camera on'}
+            aria-label={isCameraOn ? 'Turn camera off' : 'Turn camera on'}
+            type="button"
+          >
+            {isCameraOn ? <Video size={20} /> : <VideoOff size={20} />}
+          </button>
+          <button
+            className={`control-pill cc ${captionsOn ? '' : 'off'}`}
+            onClick={() => setCaptionsOn(v => !v)}
+            data-tooltip={captionsOn ? 'Hide captions' : 'Show captions'}
+            aria-label={captionsOn ? 'Hide captions' : 'Show captions'}
+            type="button"
+          >
+            <span className="cc-letters">CC</span>
+          </button>
+          <button
+            className="control-pill end"
+            onClick={handleEndCall}
+            data-tooltip="End call"
+            aria-label="End call"
+            type="button"
+          >
+            <PhoneOff size={20} />
+          </button>
+        </div>
+
+        {error && <div className="error-toast">{error}</div>}
+      </div>
+    );
   };
 
   return (
-    <div className={isImmersive ? 'immersive-active' : ''}>
-      <header className="app-header">
-        <div className="logo-container">
-          <div className="logo-pulse"></div>
-          <h1 className="app-title">LiveCall AI</h1>
-          <span className="app-subtitle">REALTIME • OPENAI + HEYGEN LITE</span>
-        </div>
-        {state !== 'INACTIVE' && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <div className={`status-dot ${state === 'CONNECTED' ? 'active' : 'connecting'}`}></div>
-            <span className="status-text">{state}</span>
-          </div>
-        )}
-      </header>
-
-      <main className="app-container">
-        {error && (
-          <div className="api-warning-banner">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <AlertCircle size={18} /><strong>Connection Error</strong>
-            </div>
-            <p>{error}</p>
-          </div>
-        )}
-
-        <div className="dashboard-grid">
-          <section className="settings-panel">
-            <h2 className="panel-title"><Settings size={18} /> Call Setup</h2>
-
-            <div className="settings-section">
-              <label className="settings-label">Avatar</label>
-              <div className="select-wrapper">
-                <select
-                  className="custom-select"
-                  value={selectedAvatar}
-                  onChange={e => setSelectedAvatar(e.target.value)}
-                  disabled={state !== 'INACTIVE'}
-                >
-                  {PRESET_AVATARS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-                </select>
-              </div>
-            </div>
-
-            <div className="settings-section">
-              <label className="settings-label">Voice (OpenAI Realtime)</label>
-              <div className="select-wrapper">
-                <select
-                  className="custom-select"
-                  value={selectedVoice}
-                  onChange={e => setSelectedVoice(e.target.value)}
-                  disabled={state !== 'INACTIVE'}
-                >
-                  {OPENAI_VOICES.map(v => <option key={v} value={v}>{v}</option>)}
-                </select>
-              </div>
-              <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.4rem' }}>
-                Voice is currently set server-side via OPENAI_REALTIME_VOICE. UI selection takes effect on next server restart.
-              </p>
-            </div>
-
-            <div style={{ marginTop: 'auto', display: 'flex', gap: '0.5rem', color: 'var(--text-muted)', fontSize: '0.75rem', lineHeight: 1.4 }}>
-              <Info size={16} style={{ flexShrink: 0, color: 'var(--accent-teal)' }} />
-              <span>
-                Voice pipeline runs on OpenAI Realtime (GA). Avatar runs in HeyGen LITE mode for lipsync only. Barge-in is supported.
-              </span>
-            </div>
-          </section>
-
-          <section className="call-container">
-            <div className="video-stage">
-              <video ref={videoRef} className="avatar-video" playsInline autoPlay />
-
-              <div className={`user-pip ${isImmersive && showSidebar ? 'shifted' : ''}`} onClick={toggleCamera}>
-                <video
-                  ref={userVideoRef}
-                  className="user-video"
-                  playsInline autoPlay muted
-                  style={{ display: isCameraOn ? 'block' : 'none' }}
-                />
-                {!isCameraOn && (
-                  <div className="user-pip-fallback">
-                    <VideoOff size={18} /><span>Camera Off</span>
-                  </div>
-                )}
-              </div>
-
-              {state === 'CONNECTING' && (
-                <div className="screen-overlay">
-                  <div className="overlay-icon-container">
-                    <div className="overlay-pulse-ring"></div>
-                    <div className="overlay-pulse-ring-slow"></div>
-                    <div className="overlay-icon-circle"><Sparkles size={32} /></div>
-                  </div>
-                  <h3 className="overlay-title">Connecting</h3>
-                  <p className="overlay-desc">Opening OpenAI Realtime WebRTC + HeyGen LITE channels...</p>
-                </div>
-              )}
-
-              {state === 'INACTIVE' && (
-                <div className="screen-overlay">
-                  <div className="overlay-icon-container">
-                    <div className="overlay-icon-circle" style={{ background: 'var(--bg-tertiary)' }}>
-                      <Phone size={32} style={{ color: 'var(--text-secondary)' }} />
-                    </div>
-                  </div>
-                  <h3 className="overlay-title">Ready for Conversation</h3>
-                  <p className="overlay-desc">Click Start Call to begin a live voice session.</p>
-                  <button onClick={handleStartCall} className="control-btn start-call">
-                    <Phone size={18} /> Start Call Session
-                  </button>
-                </div>
-              )}
-            </div>
-
-            {state !== 'INACTIVE' && (
-              <div className="call-controls-bar">
-                <button onClick={toggleMute} className={`control-btn ${isMuted ? 'muted' : ''}`} data-tooltip={isMuted ? 'Unmute' : 'Mute'}>
-                  {isMuted ? <MicOff size={18} /> : <Mic size={18} />}
-                </button>
-                <button onClick={toggleCamera} className={`control-btn ${isCameraOn ? 'active' : ''}`} data-tooltip={isCameraOn ? 'Camera Off' : 'Camera On'}>
-                  {isCameraOn ? <Video size={18} /> : <VideoOff size={18} />}
-                </button>
-                {isImmersive && (
-                  <button onClick={() => setShowSidebar(!showSidebar)} className={`control-btn ${showSidebar ? 'active' : ''}`} data-tooltip={showSidebar ? 'Hide Chat' : 'Show Chat'}>
-                    <MessageSquare size={18} />
-                  </button>
-                )}
-                <button onClick={() => setIsImmersive(!isImmersive)} className={`control-btn ${isImmersive ? 'active' : ''}`} data-tooltip={isImmersive ? 'Exit Full Screen' : 'Full Screen'}>
-                  {isImmersive ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
-                </button>
-                <button onClick={handleEndCall} className="control-btn end-call" data-tooltip="Hang Up">
-                  <PhoneOff size={18} /> Hang Up
-                </button>
-              </div>
-            )}
-
-            <div className={`call-details-pane ${isImmersive && !showSidebar ? 'hidden' : ''}`}>
-              <div className="transcript-box">
-                <div className="transcript-header">
-                  <h4 className="transcript-title"><MessageSquare size={16} /> Live Transcript</h4>
-                  {state === 'CONNECTED' && <span className="badge-live">Live</span>}
-                </div>
-                <div className="transcript-list">
-                  {transcripts.length === 0 ? (
-                    <div className="transcript-placeholder">
-                      <span>Speak to the avatar or type a message. Transcription will appear here.</span>
-                    </div>
-                  ) : (
-                    transcripts.map(t => (
-                      <div key={t.id} className={`transcript-item ${t.sender === 'user' ? 'user-bubble' : 'avatar-bubble'}`}>
-                        <span className={`transcript-sender ${t.sender}`}>{t.sender === 'user' ? 'You' : 'Avatar'}</span>
-                        <p className="transcript-text">{t.text}</p>
-                      </div>
-                    ))
-                  )}
-                  <div ref={transcriptEndRef} />
-                </div>
-
-                {state === 'CONNECTED' && (
-                  <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.5rem' }}>
-                    <input
-                      type="text"
-                      className="custom-select"
-                      placeholder="Type a message (also speaks via Realtime)..."
-                      value={textInput}
-                      onChange={e => setTextInput(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && handleSendMessage()}
-                      style={{ flex: 1 }}
-                    />
-                    <button onClick={handleSendMessage} className="control-btn active" style={{ width: 42, height: 42, borderRadius: 12 }}>
-                      <Send size={16} />
-                    </button>
-                  </div>
-                )}
-              </div>
-
-              <div className="waveform-box">
-                <div className="visualizer-card">
-                  <div className="visualizer-label">
-                    <span>AVATAR AUDIO ENERGY</span>
-                    <span style={{ color: 'var(--accent-purple)' }}>{avatarSpeaking ? 'SPEAKING' : 'IDLE'}</span>
-                  </div>
-                  <div className="visualizer-bars-container">
-                    {avatarAudioBars.map((h, i) => (
-                      <div key={i} className={`visualizer-bar ${avatarSpeaking ? 'active-avatar' : ''}`} style={{ height: `${h}px` }} />
-                    ))}
-                  </div>
-                </div>
-
-                <div className="visualizer-card">
-                  <div className="visualizer-label">
-                    <span>YOUR VOICE INPUT</span>
-                    <span style={{ color: isMuted ? 'var(--text-muted)' : userSpeaking ? 'var(--accent-teal)' : '#22c55e' }}>
-                      {isMuted ? 'MUTED' : userSpeaking ? 'TALKING' : 'LISTENING'}
-                    </span>
-                  </div>
-                  <div className="visualizer-bars-container">
-                    {userAudioBars.map((h, i) => (
-                      <div key={i} className={`visualizer-bar ${userSpeaking ? 'active-user' : ''}`} style={{ height: `${h}px` }} />
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
+    <div className="app-shell">
+      {state === 'INACTIVE' ? renderLobby() : renderCallView()}
     </div>
   );
 }
