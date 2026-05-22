@@ -21,7 +21,9 @@ export default function App() {
   const [selectedAvatar, setSelectedAvatar] = useState(
     PRESET_AVATARS.find(a => a.name.startsWith('June'))?.id ?? PRESET_AVATARS[1].id
   );
-  const [selectedVoice, setSelectedVoice] = useState(OPENAI_VOICES[0]);
+  const [selectedVoice, setSelectedVoice] = useState(
+    OPENAI_VOICES.find(v => v === 'ballad') ?? OPENAI_VOICES[0]
+  );
   const [state, setState] = useState<CallState>('INACTIVE');
   const [error, setError] = useState<string | null>(null);
 
