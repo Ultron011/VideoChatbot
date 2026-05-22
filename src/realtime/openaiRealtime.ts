@@ -46,22 +46,6 @@ export class OpenAIRealtimeClient {
     };
 
     this.dc = this.pc.createDataChannel('oai-events');
-    this.dc.onopen = () => {
-      this.dc?.send(JSON.stringify({
-        type: 'session.update',
-        session: {
-          input_audio_format: 'pcm16',
-          output_audio_format: 'pcm16',
-          input_audio_transcription: { model: 'whisper-1' },
-          turn_detection: {
-            type: 'semantic_vad',
-            eagerness: 'medium',
-            create_response: true,
-            interrupt_response: true
-          }
-        }
-      }));
-    };
     this.dc.onmessage = (e) => this.handleServerEvent(e.data);
 
     this.micStream = await navigator.mediaDevices.getUserMedia({

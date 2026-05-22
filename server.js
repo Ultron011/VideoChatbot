@@ -26,15 +26,22 @@ app.post('/api/realtime-token', async (_req, res) => {
       session: {
         type: 'realtime',
         model: OPENAI_REALTIME_MODEL,
-        voice: OPENAI_REALTIME_VOICE,
         instructions: SYSTEM_PROMPT,
-        input_audio_format: 'pcm16',
-        output_audio_format: 'pcm16',
-        turn_detection: {
-          type: 'semantic_vad',
-          eagerness: 'medium',
-          create_response: true,
-          interrupt_response: true
+        audio: {
+          input: {
+            format: { type: 'audio/pcm', rate: 24000 },
+            turn_detection: {
+              type: 'semantic_vad',
+              eagerness: 'medium',
+              create_response: true,
+              interrupt_response: true
+            },
+            transcription: { model: 'whisper-1' }
+          },
+          output: {
+            format: { type: 'audio/pcm', rate: 24000 },
+            voice: OPENAI_REALTIME_VOICE
+          }
         }
       }
     };
@@ -82,7 +89,7 @@ app.post('/api/avatar-session', async (req, res) => {
     }
 
     const tokenJson = await tokenResp.json();
-    const sessionToken = tokenJson.data?.token || tokenJson.token;
+    const sessionToken = tokenJson.data?.session_token || tokenJson.data?.token || tokenJson.session_token || tokenJson.token;
     if (!sessionToken) {
       console.error('No session token in response:', tokenJson);
       return res.status(500).json({ error: 'No session token in LiveAvatar response' });
