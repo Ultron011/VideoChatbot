@@ -131,12 +131,14 @@ button, select, input { font-family: inherit; }
 }
 
 .lobby-preview-empty {
+  position: absolute;
+  inset: 0 0 88px 0; /* fill preview area above the pill row */
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 16px;
   color: var(--text-muted);
-  padding-bottom: 88px; /* clear the absolute-positioned pill row at bottom */
   font-size: 0.85rem;
 }
 
