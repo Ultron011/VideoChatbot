@@ -20,6 +20,7 @@ export class LiveAvatarLiteClient {
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
   private pendingAudio: string[] = [];
   private liveKitAudioEl: HTMLAudioElement | null = null;
+  private _onSessionReady: (() => void) | null = null;
 
   constructor(events: LiteAvatarEvents) {
     this.events = events;
@@ -62,10 +63,14 @@ export class LiveAvatarLiteClient {
     this.ws.onerror = () => this.events.onError?.(new Error('LiveAvatar WS error'));
     this.ws.onclose = () => { this.connected = false; };
 
+    // Wait until the session is truly ready (session.state_updated: connected),
+    // not just WS open. This ensures pendingAudio is flushed before start() resolves,
+    // so the call view shows only after the greeting audio is already flowing to HeyGen.
     await new Promise<void>((resolve, reject) => {
       if (!this.ws) return reject(new Error('No WS'));
-      this.ws.onopen = () => resolve();
-      setTimeout(() => reject(new Error('LiveAvatar WS open timeout')), 10000);
+      this._onSessionReady = resolve;
+      this.ws.onopen = () => {};
+      setTimeout(() => reject(new Error('LiveAvatar session ready timeout')), 20000);
     });
 
     this.keepAliveTimer = setInterval(() => {
@@ -83,9 +88,11 @@ export class LiveAvatarLiteClient {
       case 'session.state_updated':
         if (evt.state === 'connected') {
           this.connected = true;
-          this.events.onConnected?.();
           for (const a of this.pendingAudio) this.sendSpeakRaw(a);
           this.pendingAudio = [];
+          this.events.onConnected?.();
+          this._onSessionReady?.();
+          this._onSessionReady = null;
         } else if (evt.state === 'closed') {
           this.connected = false;
         }
