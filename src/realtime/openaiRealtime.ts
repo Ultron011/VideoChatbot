@@ -143,6 +143,11 @@ export class OpenAIRealtimeClient {
   setMicMuted(muted: boolean): void {
     if (!this.micStream) return;
     for (const t of this.micStream.getAudioTracks()) t.enabled = !muted;
+    if (muted && this.dc?.readyState === 'open') {
+      // Flush any audio already buffered on the server so the model doesn't
+      // respond to speech that was captured just before the mute tap.
+      this.dc.send(JSON.stringify({ type: 'input_audio_buffer.clear' }));
+    }
   }
 
   sendTextMessage(text: string): void {
