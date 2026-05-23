@@ -198,10 +198,11 @@ export default function App() {
     avatarRef.current = avatar;
 
     try {
-      await Promise.all([
-        avatar.start(backendBase, selectedAvatar),
-        realtime.start(backendBase)
-      ]);
+      // Start OpenAI first so it begins generating the greeting while the avatar loads.
+      // PCM frames queue in liveAvatarLite's pendingAudio and flush the moment the
+      // avatar WS connects, giving an immediate greeting as soon as the avatar appears.
+      await realtime.start(backendBase);
+      await avatar.start(backendBase, selectedAvatar);
       setState('CONNECTED');
     } catch (e: unknown) {
       console.error('Start call failed:', e);
