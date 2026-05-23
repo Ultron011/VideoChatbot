@@ -43,6 +43,10 @@ export class OpenAIRealtimeClient {
 
     this.dc = this.pc.createDataChannel('oai-events');
     this.dc.onmessage = (e) => this.handleServerEvent(e.data);
+    this.dc.onopen = () => {
+      // Trigger the model's first-turn greeting immediately on connect.
+      this.dc?.send(JSON.stringify({ type: 'response.create' }));
+    };
 
     this.micStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }
