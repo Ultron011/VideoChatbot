@@ -178,15 +178,17 @@ export default function App() {
           avatarVideoRef.current.play().catch(() => {});
         }
       },
-      onAvatarSpeakStarted: () => {
-        // Mute mic whenever avatar speaks — prevents acoustic echo on all turns.
-        realtimeRef.current?.setMicMuted(true);
-        // First speak: cancel fallback timer and enter GREETING state.
+      onAvatarAudioPlaying: () => {
+        // LiveKit audio is audible in the browser — drop the connecting overlay now.
         if (greetingFallbackTimer.current) {
           clearTimeout(greetingFallbackTimer.current);
           greetingFallbackTimer.current = null;
         }
         setState(prev => prev === 'CONNECTING' ? 'GREETING' : prev);
+      },
+      onAvatarSpeakStarted: () => {
+        // Mute mic whenever avatar speaks — prevents acoustic echo on all turns.
+        realtimeRef.current?.setMicMuted(true);
       },
       onAvatarSpeakEnded: () => {
         setState(prev => {
@@ -462,7 +464,7 @@ export default function App() {
 
   // In-call view
   const renderCallView = () => {
-    const showCaptions = captionsOn && captionsVisible && (liveAssistantCaption || liveUserCaption);
+    const showCaptions = state === 'CONVERSATION' && captionsOn && captionsVisible && (liveAssistantCaption || liveUserCaption);
     const avatarName = (PRESET_AVATARS.find(a => a.id === selectedAvatar)?.name || 'Avatar').replace(/\s*\(.*?\)\s*$/, '');
     return (
       <div className="call-stage">

@@ -8,6 +8,7 @@ export type LiteAvatarEvents = {
   onConnected?: () => void;
   onAvatarSpeakStarted?: () => void;
   onAvatarSpeakEnded?: () => void;
+  onAvatarAudioPlaying?: () => void;
   onVideoTrack?: (stream: MediaStream) => void;
   onError?: (err: Error) => void;
 };
@@ -21,6 +22,7 @@ export class LiveAvatarLiteClient {
   private pendingAudio: string[] = [];
   private liveKitAudioEl: HTMLAudioElement | null = null;
   private _onSessionReady: (() => void) | null = null;
+  private _audioPlayingFired = false;
 
   constructor(events: LiteAvatarEvents) {
     this.events = events;
@@ -45,11 +47,18 @@ export class LiveAvatarLiteClient {
         this.events.onVideoTrack?.(ms);
       }
       if (track.kind === Track.Kind.Audio) {
-        // Play LiveKit audio so it stays in sync with the avatar lip animation.
         const el = new Audio();
         el.autoplay = true;
         (el as any).playsInline = true;
         el.srcObject = new MediaStream([track.mediaStreamTrack]);
+        // Fire once when audio is actually audible in the browser —
+        // this is later than HeyGen's speak_started due to LiveKit buffering.
+        el.onplaying = () => {
+          if (!this._audioPlayingFired) {
+            this._audioPlayingFired = true;
+            this.events.onAvatarAudioPlaying?.();
+          }
+        };
         el.play().catch(() => {});
         this.liveKitAudioEl = el;
       }
@@ -149,6 +158,7 @@ export class LiveAvatarLiteClient {
     this.room = null;
     this.connected = false;
     this.pendingAudio = [];
+    this._audioPlayingFired = false;
     if (this.liveKitAudioEl) {
       this.liveKitAudioEl.srcObject = null;
       this.liveKitAudioEl = null;
