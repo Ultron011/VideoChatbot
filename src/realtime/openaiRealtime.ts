@@ -44,7 +44,9 @@ export class OpenAIRealtimeClient {
     this.dc = this.pc.createDataChannel('oai-events');
     this.dc.onmessage = (e) => this.handleServerEvent(e.data);
     this.dc.onopen = () => {
-      // Trigger the model's first-turn greeting immediately on connect.
+      // Silence the mic immediately — App unmutes it after the greeting finishes.
+      // This prevents acoustic echo and spurious VAD triggers during greeting.
+      this.setMicMuted(true);
       this.dc?.send(JSON.stringify({ type: 'response.create' }));
     };
 

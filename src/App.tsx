@@ -3,7 +3,7 @@ import { Mic, MicOff, Video, VideoOff, Phone, PhoneOff } from 'lucide-react';
 import { OpenAIRealtimeClient } from './realtime/openaiRealtime';
 import { LiveAvatarLiteClient } from './avatar/liveAvatarLite';
 
-type CallState = 'INACTIVE' | 'CONNECTING' | 'CONNECTED' | 'DISCONNECTED';
+type CallState = 'INACTIVE' | 'CONNECTING' | 'GREETING' | 'CONVERSATION';
 
 const PRESET_AVATARS = [
   { id: 'dd73ea75-1218-4ef3-92ce-606d5f7fbc0a', name: 'Sandbox Test Avatar' },
@@ -93,6 +93,7 @@ export default function App() {
   const realtimeRef = useRef<OpenAIRealtimeClient | null>(null);
   const avatarRef = useRef<LiveAvatarLiteClient | null>(null);
   const captionFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const greetingFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const backendBase = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
@@ -128,11 +129,11 @@ export default function App() {
     }
   }, [state, isCameraOn]);
 
-  // When the call view mounts, apply the avatar stream if it arrived before the
-  // video element was in the DOM (the onVideoTrack callback fires during connect,
-  // before setState('CONNECTED') renders the <video> element).
+  // Apply avatar stream each time we enter a visible call state.
+  // onVideoTrack may fire while the video element exists (CONNECTING shows the call view),
+  // but this catches any race where the ref wasn't ready.
   useEffect(() => {
-    if (state === 'CONNECTED' && avatarStreamRef.current && avatarVideoRef.current) {
+    if (state !== 'INACTIVE' && avatarStreamRef.current && avatarVideoRef.current) {
       avatarVideoRef.current.srcObject = avatarStreamRef.current;
       avatarVideoRef.current.play().catch(() => {});
     }
@@ -147,9 +148,9 @@ export default function App() {
     };
   }, []);
 
-  // Auto-hide status pill 3s after CONNECTED.
+  // Auto-hide status pill 3s after avatar starts speaking.
   useEffect(() => {
-    if (state === 'CONNECTED') {
+    if (state === 'GREETING' || state === 'CONVERSATION') {
       setShowStatusPill(true);
       const t = setTimeout(() => setShowStatusPill(false), 3000);
       return () => clearTimeout(t);
@@ -170,9 +171,7 @@ export default function App() {
     setLiveUserCaption('');
 
     const avatar = new LiveAvatarLiteClient({
-      onConnected: () => console.log('[Avatar] WS connected'),
       onVideoTrack: (ms) => {
-        // Store stream so it can be applied once the call view mounts.
         avatarStreamRef.current = ms;
         if (avatarVideoRef.current) {
           avatarVideoRef.current.srcObject = ms;
@@ -180,12 +179,28 @@ export default function App() {
         }
       },
       onAvatarSpeakStarted: () => {
-        // Mute mic + clear server buffer while avatar speaks to kill acoustic echo.
+        // Mute mic whenever avatar speaks — prevents acoustic echo on all turns.
         realtimeRef.current?.setMicMuted(true);
+        // First speak: cancel fallback timer and enter GREETING state.
+        if (greetingFallbackTimer.current) {
+          clearTimeout(greetingFallbackTimer.current);
+          greetingFallbackTimer.current = null;
+        }
+        setState(prev => prev === 'CONNECTING' ? 'GREETING' : prev);
       },
       onAvatarSpeakEnded: () => {
-        // Restore mic only if the user hasn't manually muted.
-        if (!isMutedRef.current) realtimeRef.current?.setMicMuted(false);
+        setState(prev => {
+          // After greeting finishes → enter conversation and unmute.
+          if (prev === 'GREETING') {
+            if (!isMutedRef.current) realtimeRef.current?.setMicMuted(false);
+            return 'CONVERSATION';
+          }
+          // Subsequent turns in conversation → also unmute.
+          if (prev === 'CONVERSATION' && !isMutedRef.current) {
+            realtimeRef.current?.setMicMuted(false);
+          }
+          return prev;
+        });
       },
       onError: (e) => setError(e.message)
     });
@@ -220,12 +235,24 @@ export default function App() {
     avatarRef.current = avatar;
 
     try {
-      // Start OpenAI first so it begins generating the greeting while the avatar loads.
-      // PCM frames queue in liveAvatarLite's pendingAudio and flush the moment the
-      // avatar WS connects, giving an immediate greeting as soon as the avatar appears.
+      // OpenAI connects first: mic is silenced, response.create fires, greeting generates.
+      // PCM frames queue in pendingAudio while avatar loads.
       await realtime.start(backendBase);
+      // Avatar connects: session.state_updated:connected flushes pendingAudio to HeyGen.
+      // State transitions to GREETING when onAvatarSpeakStarted fires.
       await avatar.start(backendBase, selectedAvatar);
-      setState('CONNECTED');
+      // Safety net: if HeyGen never fires speak_started (e.g. silent failure),
+      // fall through to CONVERSATION after 12s so the user isn't stuck on connecting.
+      greetingFallbackTimer.current = setTimeout(() => {
+        greetingFallbackTimer.current = null;
+        setState(prev => {
+          if (prev === 'CONNECTING' || prev === 'GREETING') {
+            if (!isMutedRef.current) realtimeRef.current?.setMicMuted(false);
+            return 'CONVERSATION';
+          }
+          return prev;
+        });
+      }, 12000);
     } catch (e: unknown) {
       console.error('Start call failed:', e);
       setError((e as Error).message || 'Failed to start call');
@@ -238,6 +265,10 @@ export default function App() {
   };
 
   const handleEndCall = async () => {
+    if (greetingFallbackTimer.current) {
+      clearTimeout(greetingFallbackTimer.current);
+      greetingFallbackTimer.current = null;
+    }
     await realtimeRef.current?.stop();
     await avatarRef.current?.stop();
     realtimeRef.current = null;
@@ -438,9 +469,9 @@ export default function App() {
         <video ref={avatarVideoRef} className="avatar-video" playsInline autoPlay />
 
         {showStatusPill && (
-          <div className={`status-pill ${state === 'CONNECTED' ? 'good' : 'connecting'}`}>
+          <div className={`status-pill ${state === 'GREETING' || state === 'CONVERSATION' ? 'good' : 'connecting'}`}>
             <span className="status-dot" />
-            <span>{state === 'CONNECTED' ? 'Connected' : state === 'CONNECTING' ? 'Connecting…' : state}</span>
+            <span>{state === 'GREETING' || state === 'CONVERSATION' ? 'Connected' : 'Connecting…'}</span>
           </div>
         )}
 
@@ -525,4 +556,5 @@ export default function App() {
       {state === 'INACTIVE' ? renderLobby() : renderCallView()}
     </div>
   );
+
 }
