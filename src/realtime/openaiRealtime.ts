@@ -17,7 +17,6 @@ export type RealtimeEvents = {
 export class OpenAIRealtimeClient {
   private pc: RTCPeerConnection | null = null;
   private dc: RTCDataChannel | null = null;
-  private audioEl: HTMLAudioElement | null = null;
   private micStream: MediaStream | null = null;
   private audioCtx: AudioContext | null = null;
   private workletNode: AudioWorkletNode | null = null;
@@ -35,13 +34,10 @@ export class OpenAIRealtimeClient {
     if (!ephemeral_key) throw new Error('No ephemeral_key in /api/realtime-token response');
 
     this.pc = new RTCPeerConnection();
-    this.audioEl = document.createElement('audio');
-    this.audioEl.autoplay = true;
-    (this.audioEl as any).playsInline = true;
 
+    // Don't play OpenAI audio directly — LiveKit audio is used instead for lip sync.
+    // We still tap PCM from the WebRTC track to drive HeyGen's lipsync pipeline.
     this.pc.ontrack = (e) => {
-      if (!this.audioEl) return;
-      this.audioEl.srcObject = e.streams[0];
       this.attachPcmTap(e.streams[0]).catch((err) => this.events.onError?.(err));
     };
 
@@ -166,10 +162,6 @@ export class OpenAIRealtimeClient {
     if (this.micStream) {
       for (const t of this.micStream.getTracks()) t.stop();
       this.micStream = null;
-    }
-    if (this.audioEl) {
-      this.audioEl.srcObject = null;
-      this.audioEl = null;
     }
     try { this.dc?.close(); } catch {}
     try { this.pc?.close(); } catch {}

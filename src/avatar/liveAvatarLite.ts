@@ -19,6 +19,7 @@ export class LiveAvatarLiteClient {
   private events: LiteAvatarEvents;
   private keepAliveTimer: ReturnType<typeof setInterval> | null = null;
   private pendingAudio: string[] = [];
+  private liveKitAudioEl: HTMLAudioElement | null = null;
 
   constructor(events: LiteAvatarEvents) {
     this.events = events;
@@ -43,7 +44,13 @@ export class LiveAvatarLiteClient {
         this.events.onVideoTrack?.(ms);
       }
       if (track.kind === Track.Kind.Audio) {
-        try { (track as any).setEnabled?.(false); } catch {}
+        // Play LiveKit audio so it stays in sync with the avatar lip animation.
+        const el = new Audio();
+        el.autoplay = true;
+        (el as any).playsInline = true;
+        el.srcObject = new MediaStream([track.mediaStreamTrack]);
+        el.play().catch(() => {});
+        this.liveKitAudioEl = el;
       }
     });
 
@@ -135,5 +142,9 @@ export class LiveAvatarLiteClient {
     this.room = null;
     this.connected = false;
     this.pendingAudio = [];
+    if (this.liveKitAudioEl) {
+      this.liveKitAudioEl.srcObject = null;
+      this.liveKitAudioEl = null;
+    }
   }
 }
