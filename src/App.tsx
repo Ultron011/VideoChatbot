@@ -40,6 +40,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
 
   const [captionsOn, setCaptionsOn] = useState(true);
@@ -49,6 +50,7 @@ export default function App() {
   const [showStatusPill, setShowStatusPill] = useState(true);
 
   const avatarVideoRef = useRef<HTMLVideoElement>(null);
+  const avatarStreamRef = useRef<MediaStream | null>(null);
   const userVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const lobbyRef = useRef<HTMLDivElement>(null);
@@ -126,6 +128,16 @@ export default function App() {
     }
   }, [state, isCameraOn]);
 
+  // When the call view mounts, apply the avatar stream if it arrived before the
+  // video element was in the DOM (the onVideoTrack callback fires during connect,
+  // before setState('CONNECTED') renders the <video> element).
+  useEffect(() => {
+    if (state === 'CONNECTED' && avatarStreamRef.current && avatarVideoRef.current) {
+      avatarVideoRef.current.srcObject = avatarStreamRef.current;
+      avatarVideoRef.current.play().catch(() => {});
+    }
+  }, [state]);
+
   useEffect(() => {
     return () => {
       stopLocalCamera();
@@ -160,10 +172,20 @@ export default function App() {
     const avatar = new LiveAvatarLiteClient({
       onConnected: () => console.log('[Avatar] WS connected'),
       onVideoTrack: (ms) => {
+        // Store stream so it can be applied once the call view mounts.
+        avatarStreamRef.current = ms;
         if (avatarVideoRef.current) {
           avatarVideoRef.current.srcObject = ms;
           avatarVideoRef.current.play().catch(() => {});
         }
+      },
+      onAvatarSpeakStarted: () => {
+        // Mute mic + clear server buffer while avatar speaks to kill acoustic echo.
+        realtimeRef.current?.setMicMuted(true);
+      },
+      onAvatarSpeakEnded: () => {
+        // Restore mic only if the user hasn't manually muted.
+        if (!isMutedRef.current) realtimeRef.current?.setMicMuted(false);
       },
       onError: (e) => setError(e.message)
     });
@@ -220,6 +242,9 @@ export default function App() {
     await avatarRef.current?.stop();
     realtimeRef.current = null;
     avatarRef.current = null;
+    avatarStreamRef.current = null;
+    isMutedRef.current = false;
+    setIsMuted(false);
     setState('INACTIVE');
     setLiveAssistantCaption('');
     setLiveUserCaption('');
@@ -227,6 +252,7 @@ export default function App() {
 
   const toggleMute = () => {
     const next = !isMuted;
+    isMutedRef.current = next;
     realtimeRef.current?.setMicMuted(next);
     setIsMuted(next);
   };
