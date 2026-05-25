@@ -1,2 +1,5 @@
-livekit-agents[openai,silero,liveavatar]==0.12.0
+livekit-agents==1.5.13
+livekit-plugins-openai==1.5.13
+livekit-plugins-silero==1.5.13
+livekit-plugins-liveavatar==1.5.13
 python-dotenv==1.0.1
