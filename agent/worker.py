@@ -7,6 +7,8 @@ from prompt import SYSTEM_PROMPT
 
 load_dotenv()
 
+GREETING = "Hi! I'm Dr. Malpani's AI nurse — how can I help you today?"
+
 
 class DrMalpaniNurse(Agent):
     def __init__(self) -> None:
@@ -38,14 +40,12 @@ async def entrypoint(ctx: JobContext) -> None:
         room=ctx.room,
     )
 
-    # Trigger the greeting. Because the avatar is already in the room
-    # and the user (browser) is already subscribed to its tracks by the
-    # time entrypoint runs, the first audio frame is one hop from audible.
-    await session.generate_reply(
-        instructions=(
-            "Greet the user warmly in English as Dr. Malpani's AI nurse. "
-            "Keep it to one short sentence."
-        )
+    # Speak a fixed greeting without invoking the LLM — the model still
+    # synthesizes the audio (so voice matches subsequent turns) but skips
+    # generation entirely. Cuts ~500–1500ms vs generate_reply().
+    await session.say(
+        GREETING,
+        allow_interruptions=True,
     )
 
 
