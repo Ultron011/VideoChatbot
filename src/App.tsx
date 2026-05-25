@@ -1,9 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { Mic, MicOff, Video, VideoOff, Phone, PhoneOff } from 'lucide-react';
-import { OpenAIRealtimeClient } from './realtime/openaiRealtime';
-import { LiveAvatarLiteClient } from './avatar/liveAvatarLite';
+import { RoomClient } from './livekit/RoomClient';
 
-type CallState = 'INACTIVE' | 'CONNECTING' | 'GREETING' | 'CONVERSATION';
+type CallState = 'INACTIVE' | 'CONNECTING' | 'LIVE';
 
 const PRESET_AVATARS = [
   { id: 'dd73ea75-1218-4ef3-92ce-606d5f7fbc0a', name: 'Sandbox Test Avatar' },
@@ -40,7 +39,6 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
 
   const [isMuted, setIsMuted] = useState(false);
-  const isMutedRef = useRef(false);
   const [isCameraOn, setIsCameraOn] = useState(false);
 
   const [captionsOn, setCaptionsOn] = useState(true);
@@ -49,8 +47,9 @@ export default function App() {
   const [liveUserCaption, setLiveUserCaption] = useState('');
   const [showStatusPill, setShowStatusPill] = useState(true);
 
+  const roomRef = useRef<RoomClient | null>(null);
   const avatarVideoRef = useRef<HTMLVideoElement>(null);
-  const avatarStreamRef = useRef<MediaStream | null>(null);
+  const pendingStreamRef = useRef<MediaStream | null>(null);
   const userVideoRef = useRef<HTMLVideoElement>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
   const lobbyRef = useRef<HTMLDivElement>(null);
@@ -90,10 +89,7 @@ export default function App() {
     lobby.style.setProperty('--tilt-ry', '0deg');
   };
 
-  const realtimeRef = useRef<OpenAIRealtimeClient | null>(null);
-  const avatarRef = useRef<LiveAvatarLiteClient | null>(null);
   const captionFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const greetingFallbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const backendBase = window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
 
@@ -129,28 +125,25 @@ export default function App() {
     }
   }, [state, isCameraOn]);
 
-  // Apply avatar stream each time we enter a visible call state.
-  // onVideoTrack may fire while the video element exists (CONNECTING shows the call view),
-  // but this catches any race where the ref wasn't ready.
+  // Apply pending avatar stream once the video element is mounted in LIVE state.
   useEffect(() => {
-    if (state !== 'INACTIVE' && avatarStreamRef.current && avatarVideoRef.current) {
-      avatarVideoRef.current.srcObject = avatarStreamRef.current;
-      avatarVideoRef.current.play().catch(() => {});
+    if (state === 'LIVE' && avatarVideoRef.current && pendingStreamRef.current) {
+      avatarVideoRef.current.srcObject = pendingStreamRef.current;
+      void avatarVideoRef.current.play().catch(() => {});
     }
   }, [state]);
 
   useEffect(() => {
     return () => {
       stopLocalCamera();
-      realtimeRef.current?.stop();
-      avatarRef.current?.stop();
+      void roomRef.current?.stop();
       if (captionFadeTimer.current) clearTimeout(captionFadeTimer.current);
     };
   }, []);
 
-  // Auto-hide status pill 3s after avatar starts speaking.
+  // Auto-hide status pill 3s after entering LIVE state.
   useEffect(() => {
-    if (state === 'GREETING' || state === 'CONVERSATION') {
+    if (state === 'LIVE') {
       setShowStatusPill(true);
       const t = setTimeout(() => setShowStatusPill(false), 3000);
       return () => clearTimeout(t);
@@ -165,129 +158,65 @@ export default function App() {
   };
 
   const handleStartCall = async () => {
+    if (state !== 'INACTIVE') return;
     setError(null);
     setState('CONNECTING');
-    setLiveAssistantCaption('');
     setLiveUserCaption('');
+    setLiveAssistantCaption('');
 
-    const avatar = new LiveAvatarLiteClient({
-      onVideoTrack: (ms) => {
-        avatarStreamRef.current = ms;
+    const room = new RoomClient({
+      onAvatarVideo: (stream) => {
+        pendingStreamRef.current = stream;
         if (avatarVideoRef.current) {
-          avatarVideoRef.current.srcObject = ms;
-          avatarVideoRef.current.play().catch(() => {});
+          avatarVideoRef.current.srcObject = stream;
+          void avatarVideoRef.current.play().catch(() => {});
         }
       },
-      onAvatarAudioPlaying: () => {
-        // LiveKit audio is audible in the browser — drop the connecting overlay now.
-        if (greetingFallbackTimer.current) {
-          clearTimeout(greetingFallbackTimer.current);
-          greetingFallbackTimer.current = null;
+      onAvatarAudible: () => {
+        setState((prev) => (prev === 'CONNECTING' ? 'LIVE' : prev));
+      },
+      onTranscript: (text, role, final) => {
+        if (role === 'user') {
+          setLiveUserCaption(text);
+          if (final) showCaptionsNow();
+        } else {
+          setLiveAssistantCaption(text);
+          showCaptionsNow();
         }
-        setState(prev => prev === 'CONNECTING' ? 'GREETING' : prev);
       },
-      onAvatarSpeakStarted: () => {
-        // Mute mic whenever avatar speaks — prevents acoustic echo on all turns.
-        realtimeRef.current?.setMicMuted(true);
+      onDisconnected: () => { void handleEndCall(); },
+      onError: (err) => {
+        console.error(err);
+        void handleEndCall();
       },
-      onAvatarSpeakEnded: () => {
-        setState(prev => {
-          // After greeting finishes → enter conversation and unmute.
-          if (prev === 'GREETING') {
-            if (!isMutedRef.current) realtimeRef.current?.setMicMuted(false);
-            return 'CONVERSATION';
-          }
-          // Subsequent turns in conversation → also unmute.
-          if (prev === 'CONVERSATION' && !isMutedRef.current) {
-            realtimeRef.current?.setMicMuted(false);
-          }
-          return prev;
-        });
-      },
-      onError: (e) => setError(e.message)
     });
-
-    const realtime = new OpenAIRealtimeClient({
-      onAudioFrame: (pcm) => avatar.speak(pcm),
-      onUserStartedSpeaking: () => {
-        // A new user turn invalidates the previous agent caption.
-        setLiveAssistantCaption('');
-        avatar.interrupt();
-      },
-      onUserTranscript: (text) => {
-        // Always show the user's transcript when it arrives — even late.
-        // It lives in its own slot above the agent caption, so it can't
-        // clobber the agent's streaming reply.
-        setLiveUserCaption(text);
-        showCaptionsNow();
-      },
-      onAssistantTranscriptDelta: (delta) => {
-        setLiveAssistantCaption(prev => prev + delta);
-        showCaptionsNow();
-      },
-      onAssistantTranscriptDone: (text) => {
-        setLiveAssistantCaption(text);
-        showCaptionsNow();
-      },
-      onResponseDone: () => avatar.speakEnd(),
-      onError: (e) => setError(e.message)
-    });
-
-    realtimeRef.current = realtime;
-    avatarRef.current = avatar;
+    roomRef.current = room;
 
     try {
-      // OpenAI connects first: mic is silenced, response.create fires, greeting generates.
-      // PCM frames queue in pendingAudio while avatar loads.
-      await realtime.start(backendBase);
-      // Avatar connects: session.state_updated:connected flushes pendingAudio to HeyGen.
-      // State transitions to GREETING when onAvatarSpeakStarted fires.
-      await avatar.start(backendBase, selectedAvatar);
-      // Safety net: if HeyGen never fires speak_started (e.g. silent failure),
-      // fall through to CONVERSATION after 12s so the user isn't stuck on connecting.
-      greetingFallbackTimer.current = setTimeout(() => {
-        greetingFallbackTimer.current = null;
-        setState(prev => {
-          if (prev === 'CONNECTING' || prev === 'GREETING') {
-            if (!isMutedRef.current) realtimeRef.current?.setMicMuted(false);
-            return 'CONVERSATION';
-          }
-          return prev;
-        });
-      }, 12000);
-    } catch (e: unknown) {
-      console.error('Start call failed:', e);
-      setError((e as Error).message || 'Failed to start call');
-      setState('INACTIVE');
-      await realtime.stop();
-      await avatar.stop();
-      realtimeRef.current = null;
-      avatarRef.current = null;
+      await room.start(backendBase);
+    } catch (err) {
+      console.error(err);
+      await handleEndCall();
     }
   };
 
   const handleEndCall = async () => {
-    if (greetingFallbackTimer.current) {
-      clearTimeout(greetingFallbackTimer.current);
-      greetingFallbackTimer.current = null;
-    }
-    await realtimeRef.current?.stop();
-    await avatarRef.current?.stop();
-    realtimeRef.current = null;
-    avatarRef.current = null;
-    avatarStreamRef.current = null;
-    isMutedRef.current = false;
+    try { await roomRef.current?.stop(); } catch {}
+    roomRef.current = null;
+    pendingStreamRef.current = null;
+    if (avatarVideoRef.current) avatarVideoRef.current.srcObject = null;
     setIsMuted(false);
     setState('INACTIVE');
-    setLiveAssistantCaption('');
     setLiveUserCaption('');
+    setLiveAssistantCaption('');
   };
 
   const toggleMute = () => {
-    const next = !isMuted;
-    isMutedRef.current = next;
-    realtimeRef.current?.setMicMuted(next);
-    setIsMuted(next);
+    setIsMuted((prev) => {
+      const next = !prev;
+      roomRef.current?.setMicMuted(next);
+      return next;
+    });
   };
 
   // Lobby (pre-call)
@@ -464,16 +393,16 @@ export default function App() {
 
   // In-call view
   const renderCallView = () => {
-    const showCaptions = state === 'CONVERSATION' && captionsOn && captionsVisible && (liveAssistantCaption || liveUserCaption);
+    const showCaptions = state === 'LIVE' && captionsOn && captionsVisible && (liveAssistantCaption || liveUserCaption);
     const avatarName = (PRESET_AVATARS.find(a => a.id === selectedAvatar)?.name || 'Avatar').replace(/\s*\(.*?\)\s*$/, '');
     return (
       <div className="call-stage">
         <video ref={avatarVideoRef} className="avatar-video" playsInline autoPlay />
 
         {showStatusPill && (
-          <div className={`status-pill ${state === 'GREETING' || state === 'CONVERSATION' ? 'good' : 'connecting'}`}>
+          <div className={`status-pill ${state === 'LIVE' ? 'good' : 'connecting'}`}>
             <span className="status-dot" />
-            <span>{state === 'GREETING' || state === 'CONVERSATION' ? 'Connected' : 'Connecting…'}</span>
+            <span>{state === 'LIVE' ? 'Connected' : 'Connecting…'}</span>
           </div>
         )}
 
