@@ -24,3 +24,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Python agent worker
+agent/.venv/
+agent/__pycache__/
+agent/.env
