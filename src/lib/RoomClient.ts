@@ -1,8 +1,11 @@
-// src/livekit/RoomClient.ts
 // Thin wrapper around livekit-client Room that exposes only what App.tsx needs.
-// All audio + video for the avatar arrive on one remote participant ("agent" or
-// the avatar bot). Because the agent worker triggers generate_reply() after
-// avatar.start(), the first track subscription IS the moment audio becomes audible.
+// All audio + video for the avatar arrive on one remote participant.
+//
+// Mic gating: the local mic stays DISABLED at room-join. The agent worker
+// publishes a `greeting_done` data message after the greeting finishes
+// playing; we enable the mic at that point (unless the user has explicitly
+// muted themselves via the UI). A 15s safety timer also unlatches in case
+// the data message is lost.
 
 import {
   Room,
@@ -15,7 +18,7 @@ import {
 
 export type RoomClientEvents = {
   onAvatarVideo?: (stream: MediaStream) => void;
-  onAvatarAudible?: () => void; // fires when avatar's audio element actually plays
+  onAvatarAudible?: () => void;
   onTranscript?: (text: string, role: 'user' | 'assistant', final: boolean) => void;
   onDisconnected?: () => void;
   onError?: (err: Error) => void;
@@ -23,11 +26,19 @@ export type RoomClientEvents = {
 
 type TokenResponse = { token: string; room: string; identity: string; url: string };
 
+const MIC_SAFETY_UNLATCH_MS = 15000;
+
 export class RoomClient {
   private room: Room | null = null;
   private events: RoomClientEvents;
   private audioEl: HTMLAudioElement | null = null;
   private localAudibleFired = false;
+
+  // User's intended mic state. Defaults to unmuted; mic still won't enable
+  // until greetingDone is also true.
+  private userWantsMuted = false;
+  private greetingDone = false;
+  private safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(events: RoomClientEvents) {
     this.events = events;
@@ -61,12 +72,20 @@ export class RoomClient {
       }
     });
 
-    room.on(RoomEvent.TranscriptionReceived, (segments, _participant, _publication) => {
+    room.on(RoomEvent.TranscriptionReceived, (segments, _participant) => {
       for (const seg of segments) {
-        // LiveKit Agents publishes transcription segments with `role` in metadata
-        // or via participant identity. Treat the local participant's identity as user.
         const isUser = _participant?.identity === room.localParticipant.identity;
         this.events.onTranscript?.(seg.text, isUser ? 'user' : 'assistant', seg.final);
+      }
+    });
+
+    room.on(RoomEvent.DataReceived, (payload, _participant, _kind, topic) => {
+      if (topic !== 'control') return;
+      try {
+        const msg = JSON.parse(new TextDecoder().decode(payload));
+        if (msg?.type === 'greeting_done') this.handleGreetingDone();
+      } catch {
+        // ignore non-JSON payloads
       }
     });
 
@@ -76,14 +95,46 @@ export class RoomClient {
     });
 
     await room.connect(url, token);
-    await room.localParticipant.setMicrophoneEnabled(true);
+
+    // Publish the mic track but keep it muted until greeting_done fires.
+    // Publishing now (vs at greeting_done) avoids a renegotiation pause
+    // mid-conversation.
+    await room.localParticipant.setMicrophoneEnabled(false);
+
+    this.safetyTimer = setTimeout(() => {
+      if (!this.greetingDone) {
+        console.warn('[RoomClient] greeting_done not received within 15s, unlatching mic');
+        this.handleGreetingDone();
+      }
+    }, MIC_SAFETY_UNLATCH_MS);
+  }
+
+  private handleGreetingDone(): void {
+    if (this.greetingDone) return;
+    this.greetingDone = true;
+    if (this.safetyTimer) {
+      clearTimeout(this.safetyTimer);
+      this.safetyTimer = null;
+    }
+    this.applyMicState();
   }
 
   setMicMuted(muted: boolean): void {
-    void this.room?.localParticipant.setMicrophoneEnabled(!muted);
+    this.userWantsMuted = muted;
+    this.applyMicState();
+  }
+
+  private applyMicState(): void {
+    if (!this.room) return;
+    const shouldEnable = this.greetingDone && !this.userWantsMuted;
+    void this.room.localParticipant.setMicrophoneEnabled(shouldEnable);
   }
 
   async stop(): Promise<void> {
+    if (this.safetyTimer) {
+      clearTimeout(this.safetyTimer);
+      this.safetyTimer = null;
+    }
     try {
       if (this.audioEl) {
         this.audioEl.srcObject = null;
@@ -93,5 +144,7 @@ export class RoomClient {
     } catch {}
     this.room = null;
     this.localAudibleFired = false;
+    this.greetingDone = false;
+    this.userWantsMuted = false;
   }
 }

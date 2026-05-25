@@ -1,3 +1,4 @@
+import json
 import os
 from dotenv import load_dotenv
 from livekit import rtc
@@ -81,13 +82,24 @@ async def entrypoint(ctx: JobContext) -> None:
     )
 
     # Stream the pre-cached greeting PCM directly to the avatar pipeline.
-    # No LLM, no TTS call at greet time — the only remaining latency is
-    # the network hop into LiveAvatar's lip-sync engine.
+    # allow_interruptions=False so user audio during the greeting cannot
+    # cut it off — and the client keeps the mic disabled until we publish
+    # `greeting_done` below, so no user audio is captured into the input
+    # buffer during this window either.
     pcm = ctx.proc.userdata["greeting_pcm"]
     await session.say(
         GREETING,
         audio=_cached_greeting_frames(pcm),
-        allow_interruptions=True,
+        allow_interruptions=False,
+    )
+
+    # Tell the browser the greeting has finished playing — RoomClient
+    # listens for this and enables the local mic. Reliable so it isn't
+    # dropped on a transient packet loss.
+    await ctx.room.local_participant.publish_data(
+        payload=json.dumps({"type": "greeting_done"}).encode(),
+        reliable=True,
+        topic="control",
     )
 
 
