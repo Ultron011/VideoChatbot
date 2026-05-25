@@ -8,8 +8,10 @@ function rid(prefix) {
 export async function mintRoomToken({ roomPrefix = 'visit', identityPrefix = 'user' } = {}) {
   const apiKey = process.env.LIVEKIT_API_KEY;
   const apiSecret = process.env.LIVEKIT_API_SECRET;
+  const url = process.env.LIVEKIT_URL;
   if (!apiKey) throw new Error('LIVEKIT_API_KEY missing on server');
   if (!apiSecret) throw new Error('LIVEKIT_API_SECRET missing on server');
+  if (!url) throw new Error('LIVEKIT_URL missing on server');
 
   const room = rid(roomPrefix);
   const identity = rid(identityPrefix);
@@ -23,7 +25,7 @@ export async function mintRoomToken({ roomPrefix = 'visit', identityPrefix = 'us
     canPublishData: true,
   });
 
-  return { token: await at.toJwt(), room, identity, url: process.env.LIVEKIT_URL };
+  return { token: await at.toJwt(), room, identity, url };
 }
 
 export default async function handler(req, res) {
