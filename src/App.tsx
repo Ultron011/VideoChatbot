@@ -4,16 +4,7 @@ import { RoomClient } from './livekit/RoomClient';
 
 type CallState = 'INACTIVE' | 'CONNECTING' | 'LIVE';
 
-const PRESET_AVATARS = [
-  { id: 'dd73ea75-1218-4ef3-92ce-606d5f7fbc0a', name: 'Sandbox Test Avatar' },
-  { id: '8175dfc2-7858-49d6-b5fa-0c135d1c4bad', name: 'Elenora (Tech Expert)' },
-  { id: '7b888024-f8c9-4205-95e1-78ce01497bda', name: 'Shawn (Therapist)' },
-  { id: '0930fd59-c8ad-434d-ad53-b391a1768720', name: 'Dexter (Lawyer)' },
-  { id: '65f9e3c9-d48b-4118-b73a-4ae2e3cbb8f0', name: 'June (HR)' },
-  { id: 'be747c9d-8e54-44b3-bcbf-c9b2c4fa1ce7', name: 'DrMalpani' }
-];
-
-const OPENAI_VOICES = ['alloy', 'ash', 'ballad', 'coral', 'echo', 'sage', 'shimmer', 'verse'];
+const AGENT_DISPLAY_NAME = "Dr. Malpani's AI Nurse";
 
 const CAPTION_FADE_MS = 6000;
 
@@ -29,12 +20,6 @@ export default function App() {
     }))
   );
 
-  const [selectedAvatar, setSelectedAvatar] = useState(
-    PRESET_AVATARS.find(a => a.name.startsWith('June'))?.id ?? PRESET_AVATARS[1].id
-  );
-  const [selectedVoice, setSelectedVoice] = useState(
-    OPENAI_VOICES.find(v => v === 'alloy') ?? OPENAI_VOICES[0]
-  );
   const [state, setState] = useState<CallState>('INACTIVE');
   const [error, setError] = useState<string | null>(null);
 
@@ -355,29 +340,7 @@ export default function App() {
 
         <div className="lobby-form">
           <h1 className="lobby-title">Ready to join?</h1>
-          <p className="lobby-sub">Pick an avatar and we’ll connect you.</p>
-
-          <label className="field">
-            <span className="field-label">Avatar</span>
-            <select
-              className="field-select"
-              value={selectedAvatar}
-              onChange={e => setSelectedAvatar(e.target.value)}
-            >
-              {PRESET_AVATARS.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-            </select>
-          </label>
-
-          <label className="field">
-            <span className="field-label">Voice</span>
-            <select
-              className="field-select"
-              value={selectedVoice}
-              onChange={e => setSelectedVoice(e.target.value)}
-            >
-              {OPENAI_VOICES.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-          </label>
+          <p className="lobby-sub">Click below to start a video consult with {AGENT_DISPLAY_NAME}.</p>
 
           <button className="join-btn" onClick={handleStartCall} type="button">
             <Phone size={18} /> Join now
@@ -394,7 +357,7 @@ export default function App() {
   // In-call view
   const renderCallView = () => {
     const showCaptions = state === 'LIVE' && captionsOn && captionsVisible && (liveAssistantCaption || liveUserCaption);
-    const avatarName = (PRESET_AVATARS.find(a => a.id === selectedAvatar)?.name || 'Avatar').replace(/\s*\(.*?\)\s*$/, '');
+    const avatarName = AGENT_DISPLAY_NAME;
     return (
       <div className="call-stage">
         <video ref={avatarVideoRef} className="avatar-video" playsInline autoPlay />
