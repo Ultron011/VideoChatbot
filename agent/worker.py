@@ -18,12 +18,16 @@ class DrMalpaniNurse(Agent):
 async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
 
+    voice = os.environ.get("OPENAI_REALTIME_VOICE", "alloy")
     session = AgentSession(
         llm=openai.realtime.RealtimeModel(
             model=os.environ.get("OPENAI_REALTIME_MODEL", "gpt-realtime-2025-08-28"),
-            voice=os.environ.get("OPENAI_REALTIME_VOICE", "alloy"),
+            voice=voice,
             temperature=0.7,
         ),
+        # Standard OpenAI TTS — only used for session.say() (canned greeting).
+        # All real conversation turns still go through RealtimeModel.
+        tts=openai.TTS(voice=voice),
         vad=silero.VAD.load(),  # only used by AgentSession plumbing; OpenAI Realtime owns turn detection
     )
 
