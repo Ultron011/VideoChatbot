@@ -1,3 +1,5 @@
+[project]
+  subdomain = "test101-cfu6fm5j"
+
 [agent]
-name = "dr-malpani-nurse"
-entrypoint = "worker.py"
+  id = "CA_LrskDfBbZwHm"

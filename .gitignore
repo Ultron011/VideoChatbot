@@ -29,3 +29,4 @@ dist-ssr
 agent/.venv/
 agent/__pycache__/
 agent/.env
+agent/secrets.env
