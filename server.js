@@ -1,7 +1,6 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import fetch from 'node-fetch';
 import livekitTokenHandler from './api/livekit-token.js';
 
 dotenv.config();
