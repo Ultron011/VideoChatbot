@@ -9,13 +9,15 @@
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test": "vitest run"
   },
   "dependencies": {
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "livekit-client": "^2.19.0",
+    "livekit-server-sdk": "^2.15.3",
     "lucide-react": "^1.16.0",
     "node-fetch": "^3.3.2",
     "react": "^19.2.6",
@@ -37,6 +39,7 @@
     "nodemon": "^3.1.14",
     "typescript": "~6.0.2",
     "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12"
+    "vite": "^8.0.12",
+    "vitest": "^4.1.7"
   }
 }
