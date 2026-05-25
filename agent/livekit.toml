@@ -1,0 +1,3 @@
+[agent]
+name = "dr-malpani-nurse"
+entrypoint = "worker.py"
