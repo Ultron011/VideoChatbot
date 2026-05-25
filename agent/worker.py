@@ -1,6 +1,5 @@
 import os
 from dotenv import load_dotenv
-from livekit import agents
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli
 from livekit.plugins import openai, liveavatar, silero
 
@@ -23,7 +22,7 @@ async def entrypoint(ctx: JobContext) -> None:
             voice=os.environ.get("OPENAI_REALTIME_VOICE", "alloy"),
             temperature=0.7,
         ),
-        vad=silero.VAD.load(),
+        vad=silero.VAD.load(),  # only used by AgentSession plumbing; OpenAI Realtime owns turn detection
     )
 
     avatar = liveavatar.AvatarSession(
