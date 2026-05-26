@@ -20,13 +20,16 @@ async def entrypoint(ctx: JobContext) -> None:
     await ctx.connect()
 
     session = AgentSession(
-        stt=openai.STT(),
-        llm=openai.LLM(model="gpt-4o"),
+        stt=openai.STT(model="gpt-4o-transcribe"),
+        llm=openai.LLM(model="gpt-4o-mini"),
         tts=elevenlabs.TTS(
             model="eleven_flash_v2_5",
             voice_id=os.environ["ELEVENLABS_VOICE_ID"],
         ),
-        vad=silero.VAD.load(),
+        # min_silence_duration: how long the user must pause before we
+        # consider their turn over. 300ms feels snappy; raise to 500ms
+        # if the agent interrupts too eagerly.
+        vad=silero.VAD.load(min_silence_duration=0.3),
     )
 
     avatar = liveavatar.AvatarSession(
