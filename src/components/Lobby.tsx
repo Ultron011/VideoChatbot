@@ -198,6 +198,22 @@ export function Lobby({
         </div>
       </div>
 
+      <a
+        href="https://beyondchats.com/"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="powered-by"
+      >
+        <span className="powered-by-label">Powered by</span>
+        <svg className="powered-by-icon" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <rect x="1" y="1" width="14" height="12" rx="3" fill="currentColor" opacity="0.9"/>
+          <path d="M4 13.5 L3 17 L7.5 14.5" fill="currentColor" opacity="0.9"/>
+          <rect x="7" y="8" width="12" height="10" rx="3" fill="currentColor"/>
+          <path d="M16 18 L17 21.5 L12.5 19" fill="currentColor"/>
+        </svg>
+        <span className="powered-by-name">BeyondChats</span>
+      </a>
+
       {error && <div className="error-toast">{error}</div>}
     </div>
   );
