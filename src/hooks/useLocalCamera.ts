@@ -39,5 +39,5 @@ export function useLocalCamera() {
 
   useEffect(() => () => stop(), []);
 
-  return { isCameraOn, toggle, stop, userVideoRef, rebind };
+  return { isCameraOn, start, toggle, stop, userVideoRef, rebind };
 }

@@ -3,6 +3,7 @@ import { RoomClient } from './lib/RoomClient';
 import { useLocalCamera } from './hooks/useLocalCamera';
 import { Lobby } from './components/Lobby';
 import { CallView } from './components/CallView';
+import { PermissionsGate } from './components/PermissionsGate';
 
 type CallState = 'INACTIVE' | 'CONNECTING' | 'LIVE';
 
@@ -14,6 +15,7 @@ const backendBase =
 
 export default function App() {
   const [state, setState] = useState<CallState>('INACTIVE');
+  const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
 
@@ -29,6 +31,11 @@ export default function App() {
   const captionFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const camera = useLocalCamera();
+
+  const handlePermissionsGranted = () => {
+    setPermissionsGranted(true);
+    void camera.start();
+  };
 
   // Re-bind the camera stream after lobby ↔ call swap.
   useEffect(() => {
@@ -141,16 +148,21 @@ export default function App() {
   return (
     <div className="app-shell">
       {state === 'INACTIVE' ? (
-        <Lobby
-          agentName={AGENT_DISPLAY_NAME}
-          isMuted={isMuted}
-          toggleMute={toggleMute}
-          isCameraOn={camera.isCameraOn}
-          toggleCamera={camera.toggle}
-          userVideoRef={camera.userVideoRef}
-          onJoin={handleStartCall}
-          error={error}
-        />
+        <>
+          <Lobby
+            agentName={AGENT_DISPLAY_NAME}
+            isMuted={isMuted}
+            toggleMute={toggleMute}
+            isCameraOn={camera.isCameraOn}
+            toggleCamera={camera.toggle}
+            userVideoRef={camera.userVideoRef}
+            onJoin={handleStartCall}
+            error={error}
+          />
+          {!permissionsGranted && (
+            <PermissionsGate onGranted={handlePermissionsGranted} />
+          )}
+        </>
       ) : (
         <CallView
           isLive={state === 'LIVE'}
