@@ -150,8 +150,7 @@ export function Lobby({
       <header className="lobby-header">
         <div className="brand-mark">
           <div className="brand-dot" />
-          <span className="brand-name">Liaison</span>
-          <span className="brand-tag">Internal Beta</span>
+          <span className="brand-name">Dr. Malpani AI Twin</span>
         </div>
       </header>
 
