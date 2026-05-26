@@ -9,16 +9,23 @@ export function useLocalCamera() {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
       streamRef.current = stream;
-      if (userVideoRef.current) {
-        userVideoRef.current.srcObject = stream;
-        userVideoRef.current.play().catch(() => {});
-      }
       setIsCameraOn(true);
+      // srcObject assignment happens in the effect below once the <video> mounts
     } catch (e) {
       console.warn('Camera failed:', e);
       setIsCameraOn(false);
     }
   };
+
+  // Bind stream to the <video> element whenever it becomes available.
+  // The element only mounts after isCameraOn flips to true, so we can't
+  // assign srcObject synchronously inside start().
+  useEffect(() => {
+    if (isCameraOn && streamRef.current && userVideoRef.current) {
+      userVideoRef.current.srcObject = streamRef.current;
+      userVideoRef.current.play().catch(() => {});
+    }
+  }, [isCameraOn]);
 
   const stop = () => {
     streamRef.current?.getTracks().forEach((t) => t.stop());

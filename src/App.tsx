@@ -18,6 +18,7 @@ export default function App() {
   const [permissionsGranted, setPermissionsGranted] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
+  const isMutedRef = useRef(false);
 
   const [captionsOn, setCaptionsOn] = useState(true);
   const [captionsVisible, setCaptionsVisible] = useState(false);
@@ -32,9 +33,13 @@ export default function App() {
 
   const camera = useLocalCamera();
 
-  const handlePermissionsGranted = () => {
+  const handlePermissionsGranted = (micEnabled: boolean, cameraEnabled: boolean) => {
     setPermissionsGranted(true);
-    void camera.start();
+    if (!micEnabled) {
+      isMutedRef.current = true;
+      setIsMuted(true);
+    }
+    if (cameraEnabled) void camera.start();
   };
 
   // Re-bind the camera stream after lobby ↔ call swap.
@@ -109,6 +114,7 @@ export default function App() {
       },
     });
     roomRef.current = room;
+    if (isMutedRef.current) room.setMicMuted(true);
 
     try {
       await room.start(backendBase);
@@ -125,6 +131,7 @@ export default function App() {
     roomRef.current = null;
     pendingStreamRef.current = null;
     if (avatarVideoRef.current) avatarVideoRef.current.srcObject = null;
+    isMutedRef.current = false;
     setIsMuted(false);
     setState('INACTIVE');
     setLiveUserCaption('');
@@ -134,6 +141,7 @@ export default function App() {
   const toggleMute = () => {
     setIsMuted((prev) => {
       const next = !prev;
+      isMutedRef.current = next;
       roomRef.current?.setMicMuted(next);
       return next;
     });
