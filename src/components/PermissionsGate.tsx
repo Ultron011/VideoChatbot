@@ -98,7 +98,7 @@ export function PermissionsGate({ onGranted }: Props) {
             <div className="perm-item-text">
               <span className="perm-item-label">Microphone</span>
               <span className="perm-item-desc">
-                {micOn ? 'Speak to the nurse' : 'You'll join muted — tap mic to enable'}
+                {micOn ? 'Speak to the nurse' : "You'll join muted — tap mic to enable"}
               </span>
             </div>
             <div className={`perm-toggle-pill ${micOn ? 'on' : ''}`} aria-hidden>
@@ -118,7 +118,7 @@ export function PermissionsGate({ onGranted }: Props) {
             <div className="perm-item-text">
               <span className="perm-item-label">Camera</span>
               <span className="perm-item-desc">
-                {cameraOn ? 'Your selfie preview during the call' : 'Camera off — tap video to enable'}
+                {cameraOn ? 'Your selfie preview during the call' : "Camera off — tap video to enable"}
               </span>
             </div>
             <div className={`perm-toggle-pill ${cameraOn ? 'on' : ''}`} aria-hidden>
