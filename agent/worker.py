@@ -8,7 +8,7 @@ from prompt import SYSTEM_PROMPT
 
 load_dotenv()
 
-GREETING = "Hi! I'm Dr. Malpani's AI nurse — how can I help you today?"
+GREETING = "Hi! I'm the AI assistant at Dr. Malpani's clinic — how can I help you today?"
 
 
 class DrMalpaniNurse(Agent):
