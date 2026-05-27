@@ -6,6 +6,7 @@ import { useVoiceActivity } from './hooks/useVoiceActivity';
 import { Lobby } from './components/Lobby';
 import { CallView } from './components/CallView';
 import { PermissionsGate } from './components/PermissionsGate';
+import { LandingPage } from './LandingPage';
 
 type CallState = 'INACTIVE' | 'CONNECTING' | 'LIVE';
 
@@ -18,9 +19,26 @@ const backendBase =
 export default function App() {
   const [state, setState] = useState<CallState>('INACTIVE');
   const [permissionsGranted, setPermissionsGranted] = useState(false);
+  const [showLobby, setShowLobby] = useState(() => {
+    return window.location.search.includes('start=true');
+  });
   const [error, setError] = useState<string | null>(null);
   const [isMuted, setIsMuted] = useState(false);
   const isMutedRef = useRef(false);
+
+  // Sync state with browser navigation
+  useEffect(() => {
+    const handlePopState = () => {
+      setShowLobby(window.location.search.includes('start=true'));
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const handleStartLobby = () => {
+    setShowLobby(true);
+    window.history.pushState({}, '', '/?start=true');
+  };
 
   const [captionsOn, setCaptionsOn] = useState(true);
   const [captionsVisible, setCaptionsVisible] = useState(false);
@@ -160,21 +178,25 @@ export default function App() {
   return (
     <div className="app-shell">
       {state === 'INACTIVE' ? (
-        <>
-          <Lobby
-            agentName={AGENT_DISPLAY_NAME}
-            isMuted={isMuted}
-            toggleMute={toggleMute}
-            isCameraOn={camera.isCameraOn}
-            toggleCamera={camera.toggle}
-            userVideoRef={camera.userVideoRef}
-            onJoin={handleStartCall}
-            error={error}
-          />
-          {!permissionsGranted && (
-            <PermissionsGate onGranted={handlePermissionsGranted} />
-          )}
-        </>
+        showLobby ? (
+          <>
+            <Lobby
+              agentName={AGENT_DISPLAY_NAME}
+              isMuted={isMuted}
+              toggleMute={toggleMute}
+              isCameraOn={camera.isCameraOn}
+              toggleCamera={camera.toggle}
+              userVideoRef={camera.userVideoRef}
+              onJoin={handleStartCall}
+              error={error}
+            />
+            {!permissionsGranted && (
+              <PermissionsGate onGranted={handlePermissionsGranted} />
+            )}
+          </>
+        ) : (
+          <LandingPage onStartCall={handleStartLobby} />
+        )
       ) : (
         <CallView
           isLive={state === 'LIVE'}
