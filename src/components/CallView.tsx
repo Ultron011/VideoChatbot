@@ -1,5 +1,5 @@
 import { type RefObject } from 'react';
-import { Mic, MicOff, Video, VideoOff, PhoneOff } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Phone } from 'lucide-react';
 import { StatusPill } from './StatusPill';
 import { Captions } from './Captions';
 
@@ -94,7 +94,7 @@ export function CallView({
           )}
         </button>
         <button
-          className={`control-pill ${!isCameraOn ? 'off' : ''}`}
+          className={`control-pill camera-btn ${!isCameraOn ? 'off camera-off' : 'camera-active'}`}
           onClick={toggleCamera}
           data-tooltip={isCameraOn ? 'Turn camera off' : 'Turn camera on'}
           aria-label={isCameraOn ? 'Turn camera off' : 'Turn camera on'}
@@ -103,7 +103,7 @@ export function CallView({
           {isCameraOn ? <Video size={20} /> : <VideoOff size={20} />}
         </button>
         <button
-          className={`control-pill cc ${captionsOn ? '' : 'off'}`}
+          className={`control-pill cc cc-btn ${captionsOn ? 'cc-active' : 'off cc-off'}`}
           onClick={() => setCaptionsOn((v) => !v)}
           data-tooltip={captionsOn ? 'Hide captions' : 'Show captions'}
           aria-label={captionsOn ? 'Hide captions' : 'Show captions'}
@@ -118,7 +118,7 @@ export function CallView({
           aria-label="End call"
           type="button"
         >
-          <PhoneOff size={20} />
+          <Phone size={20} />
         </button>
       </div>
 
