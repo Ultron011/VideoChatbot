@@ -465,14 +465,14 @@ button, select, input { font-family: inherit; }
   transform: translateX(-50%);
   display: flex;
   gap: 12px;
-  background: rgba(15, 18, 25, 0.4);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06); /* Lighter base for stunning translucent glass */
+  border: 1px solid rgba(255, 255, 255, 0.15); /* More defined light glass border */
   border-radius: var(--radius-pill);
   padding: 10px;
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  backdrop-filter: blur(28px) saturate(180%); /* Highly pronounced frosted blur and background saturation */
+  -webkit-backdrop-filter: blur(28px) saturate(180%);
   box-shadow: 0 16px 40px rgba(0, 0, 0, 0.65),
-              inset 0 1px 0 rgba(255, 255, 255, 0.08);
+              inset 0 1px 1px rgba(255, 255, 255, 0.12); /* Clean light reflection on the top edge */
   z-index: 6;
   transition: all 0.3s var(--ease);
 }
