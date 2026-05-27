@@ -75,7 +75,7 @@ export function CallView({
 
       <div className="controls-bar">
         <button
-          className={`control-pill ${isMuted ? 'off' : userSpeaking ? 'mic-speaking' : 'mic-active'}`}
+          className={`control-pill mic-btn ${isMuted ? 'off mic-muted' : userSpeaking ? 'mic-speaking' : 'mic-active'}`}
           onClick={toggleMute}
           data-tooltip={isMuted ? 'Unmute' : 'Mute'}
           aria-label={isMuted ? 'Unmute' : 'Mute'}
