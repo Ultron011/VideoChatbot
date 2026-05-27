@@ -1400,36 +1400,10 @@
     font-size: 0.9rem;
   }
   
-  /* Reset dual tickers to normal 2-column grid for tablet/desktop */
-  .chips-marquee-container {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    padding: 0;
-  }
-  .chips-marquee-container::before,
-  .chips-marquee-container::after {
-    display: none;
-  }
-  .chips-marquee {
-    overflow: visible;
-  }
-  .chips-track {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 16px;
-    width: 100%;
-    animation: none !important;
-  }
-  /* Hide the duplicate set of chips that were added for infinite scrolling loop */
-  .chips-track .chip-card:nth-child(n+5) {
-    display: none;
-  }
-  
   .chip-card {
     padding: 16px 20px;
   }
-  
+
   .chip-label {
     font-size: 0.9rem;
   }
@@ -1546,15 +1520,6 @@
   .scroll-snap-slider {
     grid-template-columns: repeat(3, 1fr);
     gap: 24px;
-  }
-
-  /* Keep chips at 2-column structure: each marquee occupies one column,
-     inner track stays 2-column — giving an effective 4-wide chip layout */
-  .chips-marquee-container {
-    grid-template-columns: repeat(2, 1fr);
-  }
-  .chips-track {
-    grid-template-columns: repeat(2, 1fr);
   }
 
   .landing-section {
