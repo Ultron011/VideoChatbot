@@ -509,6 +509,42 @@ button, select, input { font-family: inherit; }
 }
 .control-pill.end:hover { background: var(--danger-strong); }
 
+/* Mic — unmuted idle: solid green */
+.control-pill.mic-active {
+  background: #22c55e;
+  color: #fff;
+}
+.control-pill.mic-active:hover { background: #16a34a; }
+
+/* Mic — speaking: dark with green ring */
+.control-pill.mic-speaking {
+  background: rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0 0 0 2px #22c55e;
+  color: #22c55e;
+}
+.control-pill.mic-speaking:hover { background: rgba(0, 0, 0, 0.85); }
+
+/* Three-dot bounce */
+.mic-dots {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.mic-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: mic-bounce 0.7s ease-in-out infinite;
+}
+.mic-dot:nth-child(2) { animation-delay: 0.14s; }
+.mic-dot:nth-child(3) { animation-delay: 0.28s; }
+
+@keyframes mic-bounce {
+  0%, 100% { transform: translateY(0);    opacity: 0.5; }
+  50%       { transform: translateY(-6px); opacity: 1;   }
+}
+
 /* Tooltips on desktop */
 @media (hover: hover) and (min-width: 768px) {
   .control-pill[data-tooltip]:hover::after {

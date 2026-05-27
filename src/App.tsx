@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { RoomClient } from './lib/RoomClient';
 import { useLocalCamera } from './hooks/useLocalCamera';
 import { useRingTone } from './hooks/useRingTone';
+import { useVoiceActivity } from './hooks/useVoiceActivity';
 import { Lobby } from './components/Lobby';
 import { CallView } from './components/CallView';
 import { PermissionsGate } from './components/PermissionsGate';
@@ -34,6 +35,7 @@ export default function App() {
 
   const camera = useLocalCamera();
   useRingTone(state === 'CONNECTING');
+  const userSpeaking = useVoiceActivity(state === 'LIVE');
 
   const handlePermissionsGranted = (micEnabled: boolean, cameraEnabled: boolean) => {
     setPermissionsGranted(true);
@@ -192,6 +194,7 @@ export default function App() {
           agentName={AGENT_DISPLAY_NAME}
           onEndCall={handleEndCall}
           error={error}
+          userSpeaking={userSpeaking}
         />
       )}
     </div>

@@ -21,6 +21,7 @@ type Props = {
   agentName: string;
   onEndCall: () => void;
   error: string | null;
+  userSpeaking: boolean;
 };
 
 export function CallView({
@@ -41,6 +42,7 @@ export function CallView({
   agentName,
   onEndCall,
   error,
+  userSpeaking,
 }: Props) {
   return (
     <div className="call-stage">
@@ -73,13 +75,23 @@ export function CallView({
 
       <div className="controls-bar">
         <button
-          className={`control-pill ${isMuted ? 'off' : ''}`}
+          className={`control-pill ${isMuted ? 'off' : userSpeaking ? 'mic-speaking' : 'mic-active'}`}
           onClick={toggleMute}
           data-tooltip={isMuted ? 'Unmute' : 'Mute'}
           aria-label={isMuted ? 'Unmute' : 'Mute'}
           type="button"
         >
-          {isMuted ? <MicOff size={20} /> : <Mic size={20} />}
+          {isMuted ? (
+            <MicOff size={20} />
+          ) : userSpeaking ? (
+            <span className="mic-dots">
+              <span className="mic-dot" />
+              <span className="mic-dot" />
+              <span className="mic-dot" />
+            </span>
+          ) : (
+            <Mic size={20} />
+          )}
         </button>
         <button
           className={`control-pill ${!isCameraOn ? 'off' : ''}`}
