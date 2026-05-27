@@ -594,10 +594,10 @@ button, select, input { font-family: inherit; }
   height: 7px;
   border-radius: 50%;
   background: #10b981;
-  animation: mic-bounce 0.7s ease-in-out infinite;
+  animation: mic-bounce 1.2s ease-in-out infinite;
 }
-.mic-dot:nth-child(2) { animation-delay: 0.14s; }
-.mic-dot:nth-child(3) { animation-delay: 0.28s; }
+.mic-dot:nth-child(2) { animation-delay: 0.24s; }
+.mic-dot:nth-child(3) { animation-delay: 0.48s; }
 
 @keyframes mic-bounce {
   0%, 100% { transform: translateY(0);    opacity: 0.5; }
