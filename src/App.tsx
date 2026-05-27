@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { RoomClient } from './lib/RoomClient';
 import { useLocalCamera } from './hooks/useLocalCamera';
+import { useRingTone } from './hooks/useRingTone';
 import { Lobby } from './components/Lobby';
 import { CallView } from './components/CallView';
 import { PermissionsGate } from './components/PermissionsGate';
@@ -32,6 +33,7 @@ export default function App() {
   const captionFadeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const camera = useLocalCamera();
+  useRingTone(state === 'CONNECTING');
 
   const handlePermissionsGranted = (micEnabled: boolean, cameraEnabled: boolean) => {
     setPermissionsGranted(true);
