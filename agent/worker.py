@@ -3,6 +3,7 @@ import os
 from dotenv import load_dotenv
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli
 from livekit.plugins import openai, elevenlabs, liveavatar, silero
+from livekit.plugins.elevenlabs import VoiceSettings
 
 from prompt import SYSTEM_PROMPT
 
@@ -23,8 +24,15 @@ async def entrypoint(ctx: JobContext) -> None:
         stt=openai.STT(model="gpt-4o-transcribe"),
         llm=openai.LLM(model="gpt-4o-mini"),
         tts=elevenlabs.TTS(
-            model="eleven_flash_v2_5",
+            model="eleven_turbo_v2_5",
             voice_id=os.environ["ELEVENLABS_VOICE_ID"],
+            voice_settings=VoiceSettings(
+                stability=0.35,
+                similarity_boost=0.80,
+                style=0.45,
+                use_speaker_boost=True,
+            ),
+            enable_ssml_parsing=True,
         ),
         # min_silence_duration: how long the user must pause before we
         # consider their turn over. 300ms feels snappy; raise to 500ms
