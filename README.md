@@ -92,7 +92,9 @@ Wait for the `registered worker` log line.
 npm run dev
 ```
 Runs the Express token server (`http://localhost:3000`) and the Vite dev server
-(`http://localhost:5173`) together.
+(`http://localhost:5173`) together. Vite proxies `/api` to the token server, so
+the browser stays same-origin in dev exactly as it does behind nginx in prod —
+CORS never applies locally.
 
 Open the Vite URL and click **Join now**. The avatar greets shortly after
 appearing, then you can talk to it.

@@ -43,8 +43,10 @@ export class RoomClient {
     this.events = events;
   }
 
-  async start(backendBase: string): Promise<void> {
-    const resp = await fetch(`${backendBase}/api/livekit-token`, { method: 'POST' });
+  // Always same-origin: Vite proxies /api to the token server in dev, nginx
+  // does the same in production.
+  async start(): Promise<void> {
+    const resp = await fetch('/api/livekit-token', { method: 'POST' });
     if (!resp.ok) throw new Error(`livekit-token: ${await resp.text()}`);
     const { token, url } = (await resp.json()) as TokenResponse;
 

@@ -13,9 +13,6 @@ type CallState = 'INACTIVE' | 'CONNECTING' | 'LIVE';
 const AGENT_DISPLAY_NAME = "Dr. Malpani's AI Nurse";
 const CAPTION_FADE_MS = 6000;
 
-const backendBase =
-  window.location.hostname === 'localhost' ? 'http://localhost:3000' : '';
-
 export default function App() {
   const [state, setState] = useState<CallState>('INACTIVE');
   const [permissionsGranted, setPermissionsGranted] = useState(false);
@@ -141,7 +138,7 @@ export default function App() {
     if (isMutedRef.current) room.setMicMuted(true);
 
     try {
-      await room.start(backendBase);
+      await room.start();
     } catch (err) {
       console.error(err);
       await handleEndCall();
