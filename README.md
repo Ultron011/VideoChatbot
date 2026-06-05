@@ -141,3 +141,8 @@ npm run lint                      # ESLint the frontend
   message (with a 15s safety unlatch), so the user can't talk over the greeting.
 - Lip sync is tight because audio and video both come from the same LiveKit
   participant (the avatar bot).
+- The agent worker registers under an explicit name — `ai-twin-dev` /
+  `ai-twin-prod`, derived from `APP_ENV` (override with `AGENT_NAME`) — and the
+  token server dispatches it by name into each room. Side effect: rooms created
+  outside the app (e.g. the LiveKit dashboard playground) won't auto-receive
+  the agent; add the agent name there manually if needed.

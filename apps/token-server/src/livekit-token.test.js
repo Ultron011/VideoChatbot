@@ -31,4 +31,24 @@ describe('mintRoomToken', () => {
     delete process.env.LIVEKIT_URL;
     await expect(mintRoomToken({})).rejects.toThrow(/LIVEKIT_URL/);
   });
+
+  it('embeds the named agent dispatch in the token', async () => {
+    process.env.AGENT_NAME = 'test-agent';
+    const { token } = await mintRoomToken({});
+    delete process.env.AGENT_NAME;
+
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+    expect(payload.roomConfig.agents).toHaveLength(1);
+    expect(payload.roomConfig.agents[0].agentName).toBe('test-agent');
+  });
+
+  it('derives the agent name from APP_ENV when AGENT_NAME is unset', async () => {
+    delete process.env.AGENT_NAME;
+    process.env.APP_ENV = 'prod';
+    const { token } = await mintRoomToken({});
+    delete process.env.APP_ENV;
+
+    const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+    expect(payload.roomConfig.agents[0].agentName).toBe('ai-twin-prod');
+  });
 });

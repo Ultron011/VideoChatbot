@@ -22,6 +22,11 @@ if not ENV_FILE.exists():
     )
 load_dotenv(ENV_FILE)
 
+# The worker registers under an explicit name (ai-twin-dev / ai-twin-prod by
+# default), which disables auto-dispatch: the token server requests this agent
+# by name for every room it mints a token for (RoomAgentDispatch).
+AGENT_NAME = os.getenv("AGENT_NAME", f"ai-twin-{APP_ENV}")
+
 GREETING = "Hi! I'm the AI assistant at Dr. Malpani's clinic — how can I help you today?"
 
 
@@ -74,4 +79,4 @@ async def entrypoint(ctx: JobContext) -> None:
 
 
 if __name__ == "__main__":
-    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint))
+    cli.run_app(WorkerOptions(entrypoint_fnc=entrypoint, agent_name=AGENT_NAME))

@@ -1,4 +1,4 @@
-import { AccessToken } from 'livekit-server-sdk';
+import { AccessToken, RoomAgentDispatch, RoomConfiguration } from 'livekit-server-sdk';
 import { randomBytes } from 'node:crypto';
 
 function rid(prefix) {
@@ -16,6 +16,11 @@ export async function mintRoomToken({ roomPrefix = 'visit', identityPrefix = 'us
   const room = rid(roomPrefix);
   const identity = rid(identityPrefix);
 
+  // The agent worker registers under an explicit name (ai-twin-dev /
+  // ai-twin-prod, derived from APP_ENV), so each room must request it by name.
+  const agentName =
+    process.env.AGENT_NAME || `ai-twin-${process.env.APP_ENV || 'dev'}`;
+
   const at = new AccessToken(apiKey, apiSecret, { identity, ttl: '15m' });
   at.addGrant({
     room,
@@ -23,6 +28,9 @@ export async function mintRoomToken({ roomPrefix = 'visit', identityPrefix = 'us
     canPublish: true,
     canSubscribe: true,
     canPublishData: true,
+  });
+  at.roomConfig = new RoomConfiguration({
+    agents: [new RoomAgentDispatch({ agentName })],
   });
 
   return { token: await at.toJwt(), room, identity, url };
