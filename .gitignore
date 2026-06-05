@@ -28,8 +28,11 @@ dist-ssr
 # Python agent worker
 apps/agent/.venv/
 apps/agent/__pycache__/
-apps/agent/.env
 apps/agent/secrets.env
+
+# Per-environment credentials — only the example is committed
+env/.env.*
+!env/.env.example
 
 # Local-only docs (specs & plans) — dev reference, not deployed/pushed
 docs/

@@ -35,6 +35,7 @@ apps/
 ├── web/            React + Vite frontend (built static, served by nginx)
 ├── token-server/   Express service that mints LiveKit JWTs (binds 127.0.0.1)
 └── agent/          Python LiveKit Agents worker (STT → LLM → TTS + avatar)
+env/                Shared per-environment credentials (.env.dev / .env.prod, gitignored)
 docs/               Plans + specs (local-only, gitignored)
 ```
 
@@ -62,20 +63,23 @@ server run together via the root `dev` script.
    pip install -r requirements.txt
    ```
 
-3. **Env vars** — copy the example files and fill in your keys:
+3. **Env vars** — ONE shared file per environment, read by both the token
+   server and the agent worker:
    ```sh
-   cp apps/token-server/.env.example apps/token-server/.env   # LiveKit creds only
-   cp apps/agent/.env.example apps/agent/.env                 # LiveKit + HeyGen + OpenAI + ElevenLabs
+   cp env/.env.example env/.env.dev    # fill in your keys
    ```
+   `APP_ENV` picks the file (`env/.env.${APP_ENV}`) and **defaults to `dev`**,
+   so on a dev machine you set nothing. The real `.env.dev` / `.env.prod` are
+   gitignored — credentials never enter git.
 
    Where to get the values:
-   - **LiveKit** — https://cloud.livekit.io → create project → Settings → Keys.
-     The URL / API Key / Secret go in **both** `.env` files.
+   - **LiveKit** — https://cloud.livekit.io → create project → Settings → Keys
+     (`LIVEKIT_URL`, `LIVEKIT_API_KEY`, `LIVEKIT_API_SECRET`).
    - **HeyGen LiveAvatar** — https://app.liveavatar.com → API key →
-     `LIVEAVATAR_API_KEY` in `apps/agent/.env`.
+     `LIVEAVATAR_API_KEY`.
    - **OpenAI** — https://platform.openai.com/api-keys → `OPENAI_API_KEY`.
    - **ElevenLabs** — https://elevenlabs.io → API key + a voice id →
-     `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`.
+     `ELEVEN_API_KEY` and `ELEVENLABS_VOICE_ID`.
 
 ### Start the call
 
@@ -103,12 +107,21 @@ appearing, then you can talk to it.
 
 ## Building & deploying
 
+One-time setup on the prod box:
+```sh
+cp env/.env.example env/.env.prod    # fill in prod values, incl. ALLOWED_ORIGIN
+echo 'export APP_ENV=prod' >> ~/.bashrc && source ~/.bashrc
+```
+
+Then per deploy:
 - `npm run build` → builds the frontend to **`apps/web/dist`** (point nginx's
   web root here).
-- Token server in prod: `npm run start -w apps/token-server` (runs with the app
-  as its working dir so `dotenv` finds `apps/token-server/.env`).
-- Agent in prod: `cd apps/agent && python worker.py start` (long-running; keep it
-  alive with systemd/pm2).
+- Token server: `npm run start -w apps/token-server`. The env file is resolved
+  relative to the source (`env/.env.${APP_ENV}`), so the working directory no
+  longer matters.
+- Agent: `cd apps/agent && python worker.py start` (long-running; keep it alive
+  with systemd/pm2). `APP_ENV` picks credentials; the `dev|start` subcommand
+  picks the worker mode — they're unrelated.
 
 ## Testing
 

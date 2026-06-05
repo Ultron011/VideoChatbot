@@ -1,9 +1,9 @@
+// env.js must be imported before anything reads process.env — it loads the
+// shared env/.env.${APP_ENV} file from the repo root.
+import { APP_ENV } from './env.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import { livekitTokenRoute } from './livekit-token.js';
-
-dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -21,6 +21,6 @@ app.use(express.json());
 app.post('/api/livekit-token', livekitTokenRoute);
 
 app.listen(PORT, HOST, () => {
-  console.log(`LiveKit token server listening on http://${HOST}:${PORT}`);
+  console.log(`LiveKit token server listening on http://${HOST}:${PORT} (APP_ENV=${APP_ENV})`);
   console.log(`  POST /api/livekit-token`);
 });

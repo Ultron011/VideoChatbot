@@ -1,5 +1,7 @@
 import json
 import os
+from pathlib import Path
+
 from dotenv import load_dotenv
 from livekit.agents import Agent, AgentSession, JobContext, WorkerOptions, cli
 from livekit.plugins import openai, elevenlabs, liveavatar, silero
@@ -7,7 +9,18 @@ from livekit.plugins.elevenlabs import VoiceSettings
 
 from prompt import SYSTEM_PROMPT
 
-load_dotenv()
+# Shared per-environment credentials: env/.env.${APP_ENV} at the repo root.
+# APP_ENV defaults to "dev"; the prod box exports APP_ENV=prod once.
+# (Note: APP_ENV picks credentials; `python worker.py dev|start` picks the
+# worker mode — they are unrelated.)
+APP_ENV = os.getenv("APP_ENV", "dev")
+ENV_FILE = Path(__file__).resolve().parents[2] / "env" / f".env.{APP_ENV}"
+if not ENV_FILE.exists():
+    raise FileNotFoundError(
+        f'Missing env file for APP_ENV="{APP_ENV}": {ENV_FILE}. '
+        "Copy env/.env.example to env/.env.dev (or env/.env.prod) and fill in values."
+    )
+load_dotenv(ENV_FILE)
 
 GREETING = "Hi! I'm the AI assistant at Dr. Malpani's clinic — how can I help you today?"
 
