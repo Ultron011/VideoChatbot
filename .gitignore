@@ -26,8 +26,10 @@ dist-ssr
 *.sw?
 
 # Python agent worker
-agent/.venv/
-agent/__pycache__/
-agent/.env
-agent/secrets.env
-.vercel
+apps/agent/.venv/
+apps/agent/__pycache__/
+apps/agent/.env
+apps/agent/secrets.env
+
+# Local-only docs (specs & plans) — dev reference, not deployed/pushed
+docs/

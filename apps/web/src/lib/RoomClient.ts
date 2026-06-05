@@ -11,7 +11,6 @@ import {
   Room,
   RoomEvent,
   RemoteTrack,
-  RemoteParticipant,
   Track,
   ConnectionState,
 } from 'livekit-client';
@@ -52,14 +51,14 @@ export class RoomClient {
     const room = new Room({ adaptiveStream: true, dynacast: true });
     this.room = room;
 
-    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack, _pub, _p: RemoteParticipant) => {
+    room.on(RoomEvent.TrackSubscribed, (track: RemoteTrack) => {
       if (track.kind === Track.Kind.Video) {
         this.events.onAvatarVideo?.(new MediaStream([track.mediaStreamTrack]));
       }
       if (track.kind === Track.Kind.Audio) {
         const el = new Audio();
         el.autoplay = true;
-        (el as any).playsInline = true;
+        (el as HTMLAudioElement & { playsInline: boolean }).playsInline = true;
         el.srcObject = new MediaStream([track.mediaStreamTrack]);
         el.onplaying = () => {
           if (!this.localAudibleFired) {
@@ -141,7 +140,7 @@ export class RoomClient {
         this.audioEl = null;
       }
       await this.room?.disconnect();
-    } catch {}
+    } catch { /* already disconnected — ignore */ }
     this.room = null;
     this.localAudibleFired = false;
     this.greetingDone = false;

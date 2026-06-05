@@ -1,41 +1,61 @@
 # Dr. Malpani AI Nurse — Live Video Avatar
 
-Real-time video call app where users talk to an AI nurse avatar for Dr. Malpani's IVF clinic. Built on LiveKit Agents with HeyGen LiveAvatar for video/lip-sync and OpenAI Realtime as the conversational model.
+Real-time video call app where users talk to an AI nurse avatar for Dr.
+Malpani's IVF clinic. Built on LiveKit Agents with HeyGen LiveAvatar for
+video/lip-sync, OpenAI for speech-to-text and the conversational model, and
+ElevenLabs for the voice.
 
 ## Architecture
 
 ```
-Browser (React + livekit-client)
+Browser (React + livekit-client)              apps/web
         │
         ▼
 LiveKit Cloud room ───────── Avatar bot (publishes synced A/V)
         ▲                              ▲
         │                              │
-Node token endpoint            Python agent worker
-(api/livekit-token.js)         (agent/worker.py)
-                                       │
-                          ┌────────────┼────────────┐
-                          ▼            ▼            ▼
-                    OpenAI Realtime  OpenAI TTS  HeyGen LiveAvatar
-                    (conversation)   (greeting)  (video + lip-sync)
+Token server (Express)          Python agent worker
+apps/token-server               apps/agent
+        │                              │
+   mints LiveKit       ┌───────────────┼───────────────────┐
+   JWT (15m TTL)       ▼               ▼                   ▼
+                  OpenAI STT       OpenAI LLM         ElevenLabs TTS ─► HeyGen
+                gpt-4o-transcribe  gpt-4o-mini        eleven_turbo_v2_5  LiveAvatar
 ```
 
-Everything except the browser runs server-side. The browser is a thin LiveKit room participant that joins, subscribes to the avatar's audio + video tracks, and publishes the user's mic.
+Everything except the browser runs server-side. The browser is a thin LiveKit
+room participant: it joins, subscribes to the avatar's audio + video tracks, and
+publishes the user's mic. The token server exists solely to mint LiveKit JWTs —
+the signing secret must never reach the browser.
+
+## Monorepo layout
+
+```
+apps/
+├── web/            React + Vite frontend (built static, served by nginx)
+├── token-server/   Express service that mints LiveKit JWTs (binds 127.0.0.1)
+└── agent/          Python LiveKit Agents worker (STT → LLM → TTS + avatar)
+docs/               Plans + specs (local-only, gitignored)
+```
+
+`apps/web` and `apps/token-server` are npm workspaces (one `npm install` at the
+root). `apps/agent` is an independent Python project with its own virtualenv.
 
 ## Running locally
 
-You'll need **three processes** in three terminals.
+You need **three processes**. The agent runs on its own; the web app and token
+server run together via the root `dev` script.
 
 ### Prerequisites (one-time)
 
-1. **Node deps:**
+1. **Node deps** (installs both JS workspaces):
    ```sh
    npm install
    ```
 
 2. **Python deps:**
    ```sh
-   cd agent
+   cd apps/agent
    python -m venv .venv
    .venv\Scripts\Activate.ps1     # Windows PowerShell
    # source .venv/bin/activate    # macOS/Linux
@@ -44,72 +64,65 @@ You'll need **three processes** in three terminals.
 
 3. **Env vars** — copy the example files and fill in your keys:
    ```sh
-   cp .env.example .env                  # root: LiveKit creds only
-   cp agent/.env.example agent/.env      # worker: LiveKit + HeyGen + OpenAI
+   cp apps/token-server/.env.example apps/token-server/.env   # LiveKit creds only
+   cp apps/agent/.env.example apps/agent/.env                 # LiveKit + HeyGen + OpenAI + ElevenLabs
    ```
 
    Where to get the values:
-   - **LiveKit** — https://cloud.livekit.io → create project → Settings → Keys → copy URL / API Key / Secret into both `.env` files.
-   - **HeyGen LiveAvatar** — https://app.liveavatar.com → API key → paste into `agent/.env` as `LIVEAVATAR_API_KEY`.
-   - **OpenAI** — https://platform.openai.com/api-keys → paste into `agent/.env` as `OPENAI_API_KEY`.
+   - **LiveKit** — https://cloud.livekit.io → create project → Settings → Keys.
+     The URL / API Key / Secret go in **both** `.env` files.
+   - **HeyGen LiveAvatar** — https://app.liveavatar.com → API key →
+     `LIVEAVATAR_API_KEY` in `apps/agent/.env`.
+   - **OpenAI** — https://platform.openai.com/api-keys → `OPENAI_API_KEY`.
+   - **ElevenLabs** — https://elevenlabs.io → API key + a voice id →
+     `ELEVENLABS_API_KEY` and `ELEVENLABS_VOICE_ID`.
 
-### Start the call (three terminals)
+### Start the call
 
 **Terminal A — Python agent worker:**
 ```sh
-cd agent
+cd apps/agent
 .venv\Scripts\Activate.ps1
 python worker.py dev
 ```
-Waits for `registered worker` log line.
+Wait for the `registered worker` log line.
 
-**Terminal B — Node token endpoint:**
-```sh
-npm run server
-```
-Listens on `http://localhost:3000`.
-
-**Terminal C — Vite dev server:**
-```sh
-npm run client
-```
-Opens at `http://localhost:5173`.
-
-Open the Vite URL and click **Join now**. The avatar greets within ~200ms of appearing, then you can talk to it.
-
-### Combined dev script (Node + Vite in one terminal)
-
-If you'd rather run Node and Vite together, use:
+**Terminal B — token server + web (from repo root):**
 ```sh
 npm run dev
 ```
-You still need to start the Python worker separately in another terminal.
+Runs the Express token server (`http://localhost:3000`) and the Vite dev server
+(`http://localhost:5173`) together.
 
-## Project layout
+Open the Vite URL and click **Join now**. The avatar greets shortly after
+appearing, then you can talk to it.
 
-```
-agent/                  Python LiveKit Agents worker (OpenAI + HeyGen)
-api/                    Serverless functions (LiveKit token mint)
-public/                 Static assets
-src/
-├── App.tsx             State machine + shell
-├── components/         Lobby, CallView, Captions, StatusPill
-├── hooks/              useLocalCamera
-├── lib/                RoomClient (livekit-client wrapper)
-└── main.tsx, index.css
-docs/                   Plans + specs (historical record)
-server.js               Dev-only Express wrapping api/
-```
+> Prefer separate terminals? Use `npm run dev:server` and `npm run dev:web`.
+
+## Building & deploying
+
+- `npm run build` → builds the frontend to **`apps/web/dist`** (point nginx's
+  web root here).
+- Token server in prod: `npm run start -w apps/token-server` (runs with the app
+  as its working dir so `dotenv` finds `apps/token-server/.env`).
+- Agent in prod: `cd apps/agent && python worker.py start` (long-running; keep it
+  alive with systemd/pm2).
 
 ## Testing
 
 ```sh
-npm test                # Vitest — covers the token endpoint
-npx tsc -b --noEmit     # Type-check
+npm test                          # Vitest — covers the token-mint function
+cd apps/web && npx tsc -b --noEmit # Type-check the frontend
+npm run lint                      # ESLint the frontend
 ```
 
 ## Notes
 
-- HeyGen LiveAvatar consumes credits per session-minute regardless of whether you use the public sandbox avatar (`dd73ea75-…`) or your own custom one. The "public" label means "every API key can use it," not "free."
-- The greeting is pre-synthesized once when the worker process starts (`prewarm_fnc` in `agent/worker.py`) and streamed as cached PCM at call time — no LLM or TTS round-trip when the user clicks Join.
-- Lip sync is tight because audio and video both come from the same LiveKit participant (the avatar bot). The old browser-side PCM bridge is gone — see `docs/superpowers/plans/2026-05-25-livekit-agents-migration.md` for the migration history.
+- HeyGen LiveAvatar consumes credits per session-minute regardless of whether
+  you use the public sandbox avatar (`dd73ea75-…`) or your own custom one. The
+  "public" label means "every API key can use it," not "free."
+- The greeting is a fixed line spoken live via `session.say()` at call time. The
+  browser keeps the mic muted until the worker publishes a `greeting_done` data
+  message (with a 15s safety unlatch), so the user can't talk over the greeting.
+- Lip sync is tight because audio and video both come from the same LiveKit
+  participant (the avatar bot).

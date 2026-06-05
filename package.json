@@ -1,44 +1,21 @@
 {
-  "name": "qa",
+  "name": "ai-twin",
   "private": true,
   "version": "0.0.0",
   "type": "module",
+  "workspaces": [
+    "apps/web",
+    "apps/token-server"
+  ],
   "scripts": {
-    "client": "vite",
-    "server": "nodemon server.js",
-    "dev": "concurrently \"npm run server\" \"npm run client\"",
-    "build": "tsc -b && vite build",
-    "lint": "eslint .",
-    "preview": "vite preview",
-    "test": "vitest run"
-  },
-  "dependencies": {
-    "cors": "^2.8.6",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "livekit-client": "^2.19.0",
-    "livekit-server-sdk": "^2.15.3",
-    "lucide-react": "^1.16.0",
-    "react": "^19.2.6",
-    "react-dom": "^19.2.6"
+    "dev": "concurrently -n server,web -c blue,green \"npm run dev:server\" \"npm run dev:web\"",
+    "dev:web": "npm run dev -w apps/web",
+    "dev:server": "npm run dev -w apps/token-server",
+    "build": "npm run build -w apps/web",
+    "test": "npm run test -w apps/token-server",
+    "lint": "npm run lint -w apps/web"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@types/cors": "^2.8.19",
-    "@types/express": "^5.0.6",
-    "@types/node": "^24.12.4",
-    "@types/react": "^19.2.14",
-    "@types/react-dom": "^19.2.3",
-    "@vitejs/plugin-react": "^6.0.1",
-    "concurrently": "^9.2.1",
-    "eslint": "^10.3.0",
-    "eslint-plugin-react-hooks": "^7.1.1",
-    "eslint-plugin-react-refresh": "^0.5.2",
-    "globals": "^17.6.0",
-    "nodemon": "^3.1.14",
-    "typescript": "~6.0.2",
-    "typescript-eslint": "^8.59.2",
-    "vite": "^8.0.12",
-    "vitest": "^4.1.7"
+    "concurrently": "^9.2.1"
   }
 }

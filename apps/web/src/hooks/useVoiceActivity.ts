@@ -17,7 +17,8 @@ export function useVoiceActivity(active: boolean): boolean {
     if (!active) {
       cancelAnimationFrame(rafRef.current);
       if (trailTimer.current) clearTimeout(trailTimer.current);
-      setIsSpeaking(false);
+      // No setIsSpeaking(false) here: the cleanup below and the initial
+      // useState(false) already guarantee it's false whenever inactive.
       return;
     }
 

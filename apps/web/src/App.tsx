@@ -77,14 +77,16 @@ export default function App() {
     }
   }, [state]);
 
-  // Auto-hide status pill 3s after entering LIVE state.
+  // Show the status pill on every state change; auto-hide it 3s into a LIVE
+  // call. The synchronous reset is intentional — it re-shows the pill after a
+  // call ends — and is paired with a timer, so the set-state-in-effect rule
+  // doesn't apply cleanly here.
   useEffect(() => {
-    if (state === 'LIVE') {
-      setShowStatusPill(true);
-      const t = setTimeout(() => setShowStatusPill(false), 3000);
-      return () => clearTimeout(t);
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowStatusPill(true);
+    if (state !== 'LIVE') return;
+    const t = setTimeout(() => setShowStatusPill(false), 3000);
+    return () => clearTimeout(t);
   }, [state]);
 
   useEffect(() => {
@@ -149,7 +151,7 @@ export default function App() {
   const handleEndCall = async () => {
     try {
       await roomRef.current?.stop();
-    } catch {}
+    } catch { /* already stopping / disconnected — ignore */ }
     roomRef.current = null;
     pendingStreamRef.current = null;
     if (avatarVideoRef.current) avatarVideoRef.current.srcObject = null;

@@ -28,7 +28,9 @@ export async function mintRoomToken({ roomPrefix = 'visit', identityPrefix = 'us
   return { token: await at.toJwt(), room, identity, url };
 }
 
-export default async function handler(req, res) {
+// Express route handler. Thin wrapper over mintRoomToken so the minting logic
+// stays a pure, unit-testable function.
+export async function livekitTokenRoute(_req, res) {
   try {
     const result = await mintRoomToken({});
     res.json(result);
