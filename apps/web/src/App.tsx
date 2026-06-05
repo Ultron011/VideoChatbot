@@ -23,6 +23,7 @@ export default function App() {
   const [isMuted, setIsMuted] = useState(false);
   const isMutedRef = useRef(false);
 
+
   // Sync state with browser navigation
   useEffect(() => {
     const handlePopState = () => {
@@ -75,16 +76,14 @@ export default function App() {
   }, [state]);
 
   // Show the status pill on every state change; auto-hide it 3s into a LIVE
-  // call. The synchronous reset is intentional — it re-shows the pill after a
-  // call ends — and is paired with a timer, so the set-state-in-effect rule
-  // doesn't apply cleanly here.
+  // call.
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setShowStatusPill(true);
     if (state !== 'LIVE') return;
     const t = setTimeout(() => setShowStatusPill(false), 3000);
     return () => clearTimeout(t);
   }, [state]);
+
 
   useEffect(() => {
     return () => {
@@ -118,11 +117,12 @@ export default function App() {
         setState((prev) => (prev === 'CONNECTING' ? 'LIVE' : prev));
       },
       onTranscript: (text, role, final) => {
+        const stripSSML = (s: string) => s.replace(/<[^>]*>/g, '');
         if (role === 'user') {
           setLiveUserCaption(text);
           if (final) showCaptionsNow();
         } else {
-          setLiveAssistantCaption(text);
+          setLiveAssistantCaption(stripSSML(text));
           showCaptionsNow();
         }
       },
@@ -158,6 +158,7 @@ export default function App() {
     setLiveUserCaption('');
     setLiveAssistantCaption('');
   };
+
 
   const toggleMute = () => {
     setIsMuted((prev) => {
