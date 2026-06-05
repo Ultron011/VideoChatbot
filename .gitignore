@@ -27,8 +27,11 @@ dist-ssr
 
 # Python agent worker
 apps/agent/.venv/
-apps/agent/__pycache__/
+__pycache__/
 apps/agent/secrets.env
+
+# Generated caches (re-rendered on demand)
+apps/agent/.cache/
 
 # Per-environment credentials — only the example is committed
 env/.env.*

@@ -61,7 +61,12 @@ server run together via the root `dev` script.
    .venv\Scripts\Activate.ps1     # Windows PowerShell
    # source .venv/bin/activate    # macOS/Linux
    pip install -r requirements.txt
+   python -m livekit.agents download-files
    ```
+   The last step downloads the end-of-turn detector model weights (and Silero
+   VAD). It is REQUIRED on every machine (dev and prod) after installing or
+   upgrading the plugins — without it the worker crashes at the first user
+   turn with `'_EUORunnerMultilingual' object has no attribute '_tokenizer'`.
 
 3. **Env vars** — ONE shared file per environment, read by both the token
    server and the agent worker:
@@ -87,7 +92,7 @@ server run together via the root `dev` script.
 ```sh
 cd apps/agent
 .venv\Scripts\Activate.ps1
-python worker.py dev
+python agent.py dev
 ```
 Wait for the `registered worker` log line.
 
@@ -119,9 +124,11 @@ Then per deploy:
 - Token server: `npm run start -w apps/token-server`. The env file is resolved
   relative to the source (`env/.env.${APP_ENV}`), so the working directory no
   longer matters.
-- Agent: `cd apps/agent && python worker.py start` (long-running; keep it alive
+- Agent: `cd apps/agent && python agent.py start` (long-running; keep it alive
   with systemd/pm2). `APP_ENV` picks credentials; the `dev|start` subcommand
-  picks the worker mode — they're unrelated.
+  picks the worker mode — they're unrelated. After any
+  `pip install -r requirements.txt`, run `python -m livekit.agents
+  download-files` once before starting (turn-detector model weights).
 
 ## Testing
 
