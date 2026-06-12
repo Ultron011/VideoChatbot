@@ -42,25 +42,3 @@ AUDIO_CACHE_DIR = AGENT_DIR / ".cache" / "audio"      # generated audio (gitigno
 GREETING = "Hi! I'm the AI assistant at Dr. Malpani's clinic — how can I help you today?"
 
 TTS_MODEL = "eleven_flash_v2_5"
-
-# Instant acknowledgments played from pre-rendered audio the moment the
-# user's turn ends (cache misses only — cached answers are already
-# near-instant). They mask the LLM + TTS + avatar latency: the agent reacts
-# within ~1s while the real answer streams in behind.
-#
-# Keep them as thinking-style backchannels ("Hmm...", "Achha..."), the way
-# an Indian counsellor naturally murmurs while considering — a pause after
-# these feels like thinking. Avoid promissory phrases ("give me a moment"):
-# they make the remaining silence feel like a stall. Trailing ellipses give
-# the TTS a trailing-off, thoughtful tone.
-FILLERS_EN = [
-    "Hmm...",
-    "Achha...",
-    "Hmm, right...",
-    "Haan, okay...",
-]
-FILLERS_HI = [
-    "हम्म...",
-    "अच्छा...",
-    "जी...",
-]

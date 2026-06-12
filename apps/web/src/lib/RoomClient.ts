@@ -27,10 +27,17 @@ type TokenResponse = { token: string; room: string; identity: string; url: strin
 
 const MIC_SAFETY_UNLATCH_MS = 15000;
 
+// The avatar's source audio comes through quiet; an HTMLAudioElement can only
+// play at its native level (volume maxes at 1.0). Route it through a Web Audio
+// gain stage to amplify past that ceiling. 2.5 ≈ +8dB — loud and clear without
+// clipping on normal speech. Lower toward 1.5 if it ever distorts.
+const AVATAR_GAIN = 2.5;
+
 export class RoomClient {
   private room: Room | null = null;
   private events: RoomClientEvents;
   private audioEl: HTMLAudioElement | null = null;
+  private audioCtx: AudioContext | null = null;
   private localAudibleFired = false;
 
   // User's intended mic state. Defaults to unmuted; mic still won't enable
@@ -58,10 +65,17 @@ export class RoomClient {
         this.events.onAvatarVideo?.(new MediaStream([track.mediaStreamTrack]));
       }
       if (track.kind === Track.Kind.Audio) {
+        const stream = new MediaStream([track.mediaStreamTrack]);
+
+        // Muted element: keeps the WebRTC track "live" so Chrome doesn't
+        // silence the Web Audio graph (known createMediaStreamSource bug),
+        // and gives us the onplaying signal. Actual sound comes from the
+        // gain graph below, so this stays muted to avoid double playback.
         const el = new Audio();
         el.autoplay = true;
+        el.muted = true;
         (el as HTMLAudioElement & { playsInline: boolean }).playsInline = true;
-        el.srcObject = new MediaStream([track.mediaStreamTrack]);
+        el.srcObject = stream;
         el.onplaying = () => {
           if (!this.localAudibleFired) {
             this.localAudibleFired = true;
@@ -70,6 +84,35 @@ export class RoomClient {
         };
         el.play().catch(() => {});
         this.audioEl = el;
+
+        // Amplify past the element's 1.0 ceiling, then run a brick-wall
+        // limiter so the louder peaks get caught instead of clipping. Clean
+        // gain doesn't change tone — the harsh "shouting" feeling comes from
+        // clipping distortion, which the limiter prevents. Chain:
+        //   source -> gain -> limiter -> speakers
+        try {
+          const Ctx = window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          const ctx = new Ctx();
+          this.audioCtx = ctx;
+          const source = ctx.createMediaStreamSource(stream);
+          const gain = ctx.createGain();
+          gain.gain.value = AVATAR_GAIN;
+          const limiter = ctx.createDynamicsCompressor();
+          limiter.threshold.value = -3;  // start limiting just below 0dB
+          limiter.knee.value = 0;        // hard knee = true limiter
+          limiter.ratio.value = 20;      // ≥10:1 acts as a brick wall
+          limiter.attack.value = 0.003;  // catch transients fast
+          limiter.release.value = 0.25;
+          source.connect(gain);
+          gain.connect(limiter);
+          limiter.connect(ctx.destination);
+          void ctx.resume();
+        } catch (err) {
+          // Web Audio unavailable — fall back to plain element playback.
+          console.warn('[RoomClient] gain boost failed, using unboosted audio', err);
+          el.muted = false;
+        }
       }
     });
 
@@ -140,6 +183,10 @@ export class RoomClient {
       if (this.audioEl) {
         this.audioEl.srcObject = null;
         this.audioEl = null;
+      }
+      if (this.audioCtx) {
+        void this.audioCtx.close();
+        this.audioCtx = null;
       }
       await this.room?.disconnect();
     } catch { /* already disconnected — ignore */ }
