@@ -333,7 +333,8 @@ button, select, input { font-family: inherit; }
   height: 100%;
   object-fit: cover;
   object-position: center 30%;
-  transform: scale(1.25);
+  /* translateY lifts the subject so the face clears the bottom captions */
+  transform: scale(1.25) translateY(-3%);
   transform-origin: center 60%;
   background: var(--bg-deep);
   filter: contrast(1.1) saturate(1.15) brightness(1.02);
@@ -1003,6 +1004,32 @@ button, select, input { font-family: inherit; }
   .status-pill {
     top: 20px; left: 20px;
     font-size: 0.88rem;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE: Mobile ≤ 767px — head-and-shoulders avatar crop
+   ============================================================ */
+
+/* A portrait phone has far more vertical room than a landscape
+   desktop, so the same crop exposes the full body. Zoom harder and
+   anchor near the face so only head-to-shoulders shows, matching the
+   desktop framing. Heavier scale = softer upscale; the .avatar-video
+   filter compensates. Tune `scale`, `object-position` Y, and
+   `transform-origin` Y together if the framing needs nudging. */
+@media (max-width: 767px) {
+  .avatar-video {
+    /* The TOP of the avatar's source video is dark, so the crop window must
+       stay below it. Two knobs only:
+         object-position Y % -> excludes the dark top (higher = less black)
+         scale              -> crop tightness (higher = tighter to shoulders)
+       Pivot from center so the face stays centred as it zooms. */
+    object-position: center 44%;
+    /* Pivot up near the face so extra zoom crops the BOTTOM (hands/torso)
+       rather than enlarging the head — keeps it a clean shoulders-up shot.
+       translateY nudges the subject UP to crop the dark sliver off the top. */
+    transform: scale(2.9) translateY(-1%);
+    transform-origin: center 35%;
   }
 }
 
